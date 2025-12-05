@@ -141,7 +141,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       if (isRegistering) {
-        if (!fullName || !studentEmail || !studentPass || !birthDate || !phone) {
+       if (!fullName || !studentEmail || !studentPass || !age || !phone) {
           throw new Error('Por favor completa todos los campos obligatorios (*)');
         }
         if (selectedSacraments.length === 0) {
