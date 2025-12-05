@@ -326,10 +326,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required />
                     <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required placeholder="Crea una contraseña" />
                     
-                    <div className="grid grid-cols-2 gap-2">
-                      <InputField label="Fecha Nacimiento" type="date" value={birthDate} onChange={setBirthDate} icon={Calendar} required />
-                      <InputField label="Lugar Nacimiento" value={birthPlace} onChange={setBirthPlace} icon={MapPin} />
-                    </div>
+<div>
+  <label className="block text-sm font-medium text-gray-700">Edad</label>
+  <input
+    type="number"
+    required
+    min="18"
+    max="99"
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+    value={age}
+    onChange={(e) => setAge(e.target.value)}
+  />
+</div>
 
                     <InputField label="Teléfono (WhatsApp)" type="tel" value={phone} onChange={setPhone} icon={Phone} required />
                     <InputField label="Dirección Actual" value={address} onChange={setAddress} icon={MapPin} />
