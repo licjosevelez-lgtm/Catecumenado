@@ -152,7 +152,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           email: studentEmail,
           password: studentPass,
           birthPlace,
-          birthDate,
+          age: Number(age),
           sacramentTypes: selectedSacraments,
           address,
           phone
