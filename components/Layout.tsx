@@ -73,7 +73,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-2xl font-bold text-indigo-900 flex items-center">
             <BookOpen className="mr-2 text-indigo-600" />
-            LMS Híbrido
+            Catecismo Virtual
           </h2>
           <p className="text-sm text-gray-500 mt-1">{user.role === UserRole.ADMIN ? 'Panel Administrativo' : 'Portal del Catecúmeno'}</p>
         </div>
