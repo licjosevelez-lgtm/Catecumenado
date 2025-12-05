@@ -27,7 +27,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
   // Profile State
   const [profileData, setProfileData] = useState({
       name: '',
-      birthDate: '',
+      age: 0,
       birthPlace: '',
       phone: '',
       address: '',
@@ -50,7 +50,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
   useEffect(() => {
     setProfileData({
         name: user.name || '',
-        birthDate: user.birthDate || '',
+        age: user.age || 0,
         birthPlace: user.birthPlace || '',
         phone: user.phone || '',
         address: user.address || '',
