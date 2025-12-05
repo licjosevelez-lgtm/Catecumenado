@@ -160,13 +160,18 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                               <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento</label>
                               <div className="relative">
                                     <Calendar size={18} className="absolute left-3 top-2.5 text-gray-400"/>
-                                    <input 
-                                        type="date" 
-                                        value={profileData.birthDate} 
-                                        onChange={e => setProfileData({...profileData, birthDate: e.target.value})}
-                                        className="w-full pl-10 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                                        required
-                                    />
+                                     <label className="block text-sm font-medium text-gray-700 mb-1">Edad</label>
+<div className="relative">
+    <input
+        type="number"
+        min="18"
+        max="99"
+        value={profileData.age}
+        onChange={(e) => setProfileData({ ...profileData, age: Number(e.target.value) })}
+        className="w-full pl-3 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
+        required
+    />
+</div>
                               </div>
                           </div>
                           <div>
