@@ -9,6 +9,15 @@ interface Props {
   view: string;
   currentUser: User; // Need to know who is viewing to enable SuperAdmin features
 }
+// Función para limpiar links de YouTube
+const normalizeYoutube = (url: string) => {
+  if (!url) return '';
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11)
+    ? `https://www.youtube.com/watch?v=${match[2]}`
+    : url;
+};
 
 export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const [users, setUsers] = useState<User[]>([]);
