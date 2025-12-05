@@ -802,6 +802,9 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre / Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+  Estado Civil
+</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sacramentos</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progreso</th>
@@ -815,6 +818,9 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                     <div className="text-sm font-medium text-gray-900">{student.name}</div>
                     <div className="text-sm text-gray-500">{student.email}</div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+  {student.maritalStatus || '-'}
+</td>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap gap-1">
                       {student.sacramentTypes?.map(s => (
