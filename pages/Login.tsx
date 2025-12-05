@@ -66,6 +66,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [isSacramentListOpen, setSacramentListOpen] = useState(false);
+  const [maritalStatus, setMaritalStatus] = useState('Soltero');
 
   // UI State
   const [loading, setLoading] = useState(false);
