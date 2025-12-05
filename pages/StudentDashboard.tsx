@@ -172,6 +172,12 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         required
     />
 </div>
+                                <div className="mb-4">
+    <label className="block text-sm font-medium text-gray-700 mb-1">Estado Civil (No editable)</label>
+    <div className="w-full pl-3 border border-gray-200 bg-gray-50 text-gray-500 rounded-lg p-2">
+        {user.maritalStatus || 'No especificado'}
+    </div>
+</div>
                               </div>
                           </div>
                           <div>
