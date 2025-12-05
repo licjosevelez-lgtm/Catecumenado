@@ -339,6 +339,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     onChange={(e) => setAge(e.target.value)}
   />
 </div>
+                   <div className="mt-4">
+  <label className="block text-sm font-medium text-gray-700">Estado Civil</label>
+  <select
+    value={maritalStatus}
+    onChange={(e) => setMaritalStatus(e.target.value)}
+    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2 border"
+  >
+    <option value="Soltero">Soltero</option>
+    <option value="Union Libre">Unión Libre</option>
+    <option value="Casado Civil">Casado (Solo Civil)</option>
+    <option value="Casado Iglesia">Casado (Por la Iglesia)</option>
+  </select>
+</div>
 
                     <InputField label="Teléfono (WhatsApp)" type="tel" value={phone} onChange={setPhone} icon={Phone} required />
                     <InputField label="Dirección Actual" value={address} onChange={setAddress} icon={MapPin} />
