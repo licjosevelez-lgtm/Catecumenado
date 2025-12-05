@@ -90,7 +90,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         const updatedUser: User = {
             ...user,
             name: profileData.name,
-            birthDate: profileData.birthDate,
+            age: Number(profileData.age),
             birthPlace: profileData.birthPlace,
             phone: profileData.phone,
             address: profileData.address,
