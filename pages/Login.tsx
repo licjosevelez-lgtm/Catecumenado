@@ -61,7 +61,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   // Registration Data
   const [fullName, setFullName] = useState('');
   const [birthPlace, setBirthPlace] = useState('');
-  const [birthDate, setBirthDate] = useState('');
+  const [age, setAge] = useState('');
   const [selectedSacraments, setSelectedSacraments] = useState<string[]>([]);
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
