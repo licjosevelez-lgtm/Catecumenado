@@ -13,6 +13,7 @@ export interface User {
   // Registration fields
   birthPlace?: string;
   age?: number;
+  maritalStatus?: string;
   sacramentTypes?: string[]; // Changed to array for multi-select
   address?: string;
   phone?: string;
