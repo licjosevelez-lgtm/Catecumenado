@@ -12,7 +12,7 @@ export interface User {
   isSuperAdmin?: boolean; // New flag for RBAC
   // Registration fields
   birthPlace?: string;
-  birthDate?: string;
+  age?: number;
   sacramentTypes?: string[]; // Changed to array for multi-select
   address?: string;
   phone?: string;
