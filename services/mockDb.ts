@@ -19,6 +19,21 @@ export class MockService {
     return this.mapUser(data);
   }
 
+  // Verifica si el correo existe como ADMIN antes de pedir contraseña
+  static async checkAdminStatus(email: string): Promise<User | null> {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error || !data) return null;
+    
+    // Si existe pero no es admin, fingimos que no existe para seguridad
+    if (data.role !== 'ADMIN') return null;
+
+    return this.mapUser(data);
+  }
   // Login de Administrador
   static async loginAdmin(email: string, passwordInput: string): Promise<User | null> {
     const { data, error } = await supabase
