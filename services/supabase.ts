@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 // Borra el texto entre comillas y pega tus datos reales.
 // Deben quedar dentro de las comillas simples ' '
 
-const supabaseUrl = https://lybzvkuvjnxbfbaddnfc.supabase.co
-const supabaseKey = sb_publishable_E9oPLgg2ZNx-ovOTTtM81A_s4tKPG3f
+const supabaseUrl = 'https://lybzvkuvjnxbfbaddnfc.supabase.co';
+const supabaseKey = 'sb_publishable_E9oPLgg2ZNx-ovOTTtM81A_s4tKPG3f';
 
 // Creación del cliente
 export const supabase = createClient(supabaseUrl, supabaseKey);
