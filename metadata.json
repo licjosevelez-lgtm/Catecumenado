@@ -1,0 +1,5 @@
+{
+  "name": "Catequesis Híbrida LMS",
+  "description": "Plataforma de gestión de catequesis con lógica de progreso secuencial, exámenes con bloqueo de 48h y panel administrativo.",
+  "requestFramePermissions": []
+}
