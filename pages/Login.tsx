@@ -99,19 +99,31 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
     try {
-      const result = await MockService.checkAdminStatus(adminEmail);
-      if (result.status === 'NOT_FOUND') {
+      // 1. Buscamos al usuario en Supabase
+      const admin = await MockService.checkAdminStatus(adminEmail);
+
+      // 2. Si es null, es que no existe o no es admin
+      if (!admin) {
         throw new Error('Este correo no está autorizado como administrador.');
-      } else if (result.status === 'NEEDS_SETUP') {
-        setAdminName(result.name || '');
+      }
+
+      // 3. Si existe, guardamos su nombre para el saludo
+      setAdminName(admin.name || 'Catequista');
+
+      // 4. DECISIÓN: ¿Tiene contraseña o no?
+      // Si la contraseña está vacía (null o string vacío), lo mandamos a CREAR (SETUP).
+      // Si ya tiene contraseña (como 'admin123'), lo mandamos a LOGUEARSE (LOGIN).
+      if (!admin.password) {
         setCurrentView('ADMIN_SETUP');
       } else {
-        setAdminName(result.name || '');
         setCurrentView('ADMIN_LOGIN');
       }
+
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError(err.message || 'Error al verificar el correo.');
     } finally {
       setLoading(false);
     }
