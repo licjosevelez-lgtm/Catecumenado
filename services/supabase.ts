@@ -126,12 +126,13 @@ export class SupabaseService {
     return data.map((u: any) => this.mapUser(u));
   }
 
-  // --- MAPPER (Traductor de Base de Datos a App) ---
+// --- MAPPER (Traductor de Base de Datos a App) ---
   private static mapUser(dbUser: any) {
     return {
       id: dbUser.id,
       name: dbUser.name,
       email: dbUser.email,
+      password: dbUser.password, // <--- ¡ESTA ES LA LÍNEA MÁGICA QUE FALTABA!
       role: dbUser.role,
       age: dbUser.age,
       maritalStatus: dbUser.marital_status,
