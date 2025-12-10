@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, Module } from '../types';
-// Asegúrate de que esta ruta sea la correcta en tu proyecto
 import { SupabaseService as MockService } from '../services/supabase';
 import { Lock, CheckCircle, PlayCircle, Video, FileText, User as UserIcon, BookOpen, Download, ExternalLink } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+// ELIMINAMOS ResponsiveContainer de la importación
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Quiz } from './Quiz';
 
 interface Props {
@@ -17,7 +17,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view, onUserUpdate }) 
   const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [takingQuiz, setTakingQuiz] = useState(false);
   
-  // --- PERFIL BLINDADO ---
+  // --- PERFIL ---
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     age: user?.age || 0,
@@ -44,20 +44,18 @@ export const StudentDashboard: React.FC<Props> = ({ user, view, onUserUpdate }) 
     loadModules();
   }, []);
 
-  // --- CORRECCIÓN CRÍTICA DE LA GRÁFICA ---
-  // Nos aseguramos de que completedIds sea siempre un array
+  // --- DATOS SEGUROS PARA LA GRÁFICA ---
   const completedIds = Array.isArray(user?.completedModules) ? user.completedModules : [];
   const completedCount = completedIds.length;
-  // Si modules no ha cargado, asumimos 1 para evitar división por cero
   const totalModules = modules.length > 0 ? modules.length : 1; 
   const percentage = Math.round((completedCount / totalModules) * 100);
 
-  // Datos seguros para Recharts
   const chartData = [
     { name: 'Completado', value: completedCount },
     { name: 'Pendiente', value: Math.max(0, modules.length - completedCount) },
   ];
-  // Si todo es cero, ponemos un valor dummy para que no falle el render
+  
+  // Evitar valores vacíos visuales
   if (chartData[0].value === 0 && chartData[1].value === 0) {
       chartData[1].value = 1; 
   }
@@ -106,7 +104,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, view, onUserUpdate }) 
             </div>
         )}
         <form onSubmit={handleSaveProfile} className="space-y-6">
-            {/* Formulario de perfil seguro */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
@@ -199,18 +196,24 @@ export const StudentDashboard: React.FC<Props> = ({ user, view, onUserUpdate }) 
                 : `Has completado el ${percentage}% del curso.`}
           </p>
         </div>
-        <div className="h-32 w-32 mt-4 md:mt-0">
-          <ResponsiveContainer width="100%" height="100%">
-            {/* Aquí es donde fallaba antes. Ahora está protegido */}
-            <PieChart>
-              <Pie data={chartData} innerRadius={25} outerRadius={40} paddingAngle={5} dataKey="value">
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="h-32 w-32 mt-4 md:mt-0 flex items-center justify-center">
+          {/* GRÁFICA CORREGIDA: TAMAÑO FIJO, SIN RESPONSIVE CONTAINER */}
+          <PieChart width={128} height={128}>
+            <Pie 
+                data={chartData} 
+                cx={64} 
+                cy={64} 
+                innerRadius={25} 
+                outerRadius={40} 
+                paddingAngle={5} 
+                dataKey="value"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
         </div>
       </div>
 
