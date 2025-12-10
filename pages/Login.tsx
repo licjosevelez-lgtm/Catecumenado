@@ -101,23 +101,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setError('');
     
     try {
-      // 1. Buscamos al usuario en Supabase
-      const admin = await MockService.checkAdminStatus(adminEmail);
+      // 1. Preguntamos a Supabase el estado del correo
+      // La respuesta ya no es un usuario completo, es un objeto { status: '...', name: '...' }
+      const result = await MockService.checkAdminStatus(adminEmail);
 
-      // 2. Si es null, es que no existe o no es admin
-      if (!admin) {
+      // 2. Verificamos el resultado explícito
+      if (result.status === 'NOT_FOUND') {
         throw new Error('Este correo no está autorizado como administrador.');
       }
 
-      // 3. Si existe, guardamos su nombre para el saludo
-      setAdminName(admin.name || 'Catequista');
+      // 3. Guardamos el nombre para mostrarlo "Hola, José"
+      setAdminName(result.name || 'Catequista');
 
-      // 4. DECISIÓN: ¿Tiene contraseña o no?
-      // Si la contraseña está vacía (null o string vacío), lo mandamos a CREAR (SETUP).
-      // Si ya tiene contraseña (como 'admin123'), lo mandamos a LOGUEARSE (LOGIN).
-      if (!admin.password) {
+      // 4. EL SEMÁFORO CORREGIDO:
+      if (result.status === 'NEEDS_SETUP') {
+        // Si Supabase dice que falta contraseña, vamos a SETUP
         setCurrentView('ADMIN_SETUP');
       } else {
+        // Si dice ACTIVE, vamos a LOGIN (porque ya tienes contraseña)
         setCurrentView('ADMIN_LOGIN');
       }
 
@@ -131,7 +132,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleAdminSetup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Admin Password Validation
+    // Validamos que las contraseñas coincidan
     if (adminPass !== adminPassConfirm) {
       setError('Las contraseñas no coinciden');
       return;
@@ -159,7 +160,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setLoading(false);
     }
   };
-
   const handleStudentAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
