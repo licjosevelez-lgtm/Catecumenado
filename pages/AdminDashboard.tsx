@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, AppConfig } from '../types';
-// IMPORTACIÓN ACTUALIZADA: Usamos SupabaseService aliada como MockService
 import { SupabaseService as MockService } from '../services/supabase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet } from 'lucide-react';
@@ -15,7 +13,7 @@ interface Props {
 }
 
 export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
-  const [loading, setLoading] = useState(true); // ESTADO DE CARGA AÑADIDO
+  const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [modules, setModules] = useState<Module[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
@@ -381,7 +379,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     return (
         <div className="flex h-screen items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <span className="ml-4 text-indigo-600 font-medium">Cargando datos de Supabase...</span>
+            <span className="ml-4 text-indigo-600 font-medium">Cargando datos...</span>
         </div>
     );
   }
@@ -440,7 +438,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
 
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <h3 className="text-lg font-bold text-gray-800 mb-6">Progreso Global de la Clase</h3>
-          {/* FIX: Eliminado ResponsiveContainer, uso de contenedor con scroll y tamaño fijo */}
           <div className="overflow-x-auto w-full">
             <BarChart width={800} height={300} data={completionStats}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -642,7 +639,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                             <div><label className="block text-xs font-bold text-gray-400 uppercase mb-1">Título</label><input type="text" value={topic.title} onChange={(e) => handleTopicChange(index, 'title', e.target.value)} className="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm font-medium"/></div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Video size={12} className="mr-1"/> YouTube Link</label>
-                                {/* FIX: Agregado onBlur para normalizar YouTube URL */}
                                 <input 
                                     type="text" 
                                     value={topic.videoUrl}

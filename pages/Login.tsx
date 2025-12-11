@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { MockService } from '../services/mockDb';
+import { SupabaseService as MockService } from '../services/supabase';
 import { User, AppConfig } from '../types';
 import { Lock, User as UserIcon, MapPin, Phone, Calendar, Mail, ChevronDown, CheckSquare, Square, ShieldCheck, BookOpen, ArrowRight, ArrowLeft, Heart } from 'lucide-react';
 
@@ -63,16 +62,15 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [adminPassConfirm, setAdminPassConfirm] = useState('');
   
   // Student Flow State
-  const [isRegistering, setIsRegistering] = useState(false); // Toggle between Login/Register inside STUDENT_AUTH
+  const [isRegistering, setIsRegistering] = useState(false);
   const [studentEmail, setStudentEmail] = useState('');
   const [studentPass, setStudentPass] = useState('');
-  const [studentPassConfirm, setStudentPassConfirm] = useState(''); // New State for Confirmation
+  const [studentPassConfirm, setStudentPassConfirm] = useState('');
   
   // Registration Data
   const [fullName, setFullName] = useState('');
   const [birthPlace, setBirthPlace] = useState('');
   
-  // REFACTOR: Age and Marital Status instead of BirthDate
   const [age, setAge] = useState<number>(18);
   const [maritalStatus, setMaritalStatus] = useState('Soltero');
 
@@ -93,34 +91,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     );
   };
 
-  // --- Handlers ---
-
- const handleAdminEmailSubmit = async (e: React.FormEvent) => {
+  const handleAdminEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
     try {
       const result = await MockService.checkAdminStatus(adminEmail);
-
       if (result.status === 'NOT_FOUND') {
         throw new Error('Este correo no está autorizado como administrador.');
-      }
-
-      setAdminName(result.name || 'Catequista');
-
-      // --- AQUÍ ESTÁ LA CORRECCIÓN CLAVE ---
-      // Usamos "result.status", NO "admin.password"
-      if (result.status === 'NEEDS_SETUP') {
+      } else if (result.status === 'NEEDS_SETUP') {
+        setAdminName(result.name || '');
         setCurrentView('ADMIN_SETUP');
       } else {
+        setAdminName(result.name || '');
         setCurrentView('ADMIN_LOGIN');
       }
-      // -------------------------------------
-
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Error al verificar el correo.');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -128,7 +115,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const handleAdminSetup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Validamos que las contraseñas coincidan
     if (adminPass !== adminPassConfirm) {
       setError('Las contraseñas no coinciden');
       return;
@@ -156,6 +142,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setLoading(false);
     }
   };
+
   const handleStudentAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -163,12 +150,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       if (isRegistering) {
-        // Validation Logic
         if (!fullName || !studentEmail || !studentPass || !age || !phone) {
           throw new Error('Por favor completa todos los campos obligatorios (*)');
         }
         
-        // Check Password Match
         if (studentPass !== studentPassConfirm) {
            throw new Error('Las contraseñas no coinciden');
         }
@@ -190,13 +175,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         });
         onLogin(newUser);
       } else {
-        // Simple Student Login Check
-        const user = await MockService.loginStudent(studentEmail);
+        const user = await MockService.loginStudent(studentEmail, studentPass);
         if (user) {
-          // In a real app check password here
           onLogin(user);
         } else {
-          throw new Error('Estudiante no encontrado. Regístrate primero.');
+          throw new Error('Credenciales incorrectas o estudiante no encontrado.');
         }
       }
     } catch (err: any) {
@@ -205,8 +188,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setLoading(false);
     }
   };
-
-  // --- Views ---
 
   const renderLanding = () => (
     <div className="flex flex-col items-center w-full max-w-5xl relative z-10">
@@ -273,7 +254,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
         )}
 
-        {/* STEP 1: EMAIL */}
         {currentView === 'ADMIN_EMAIL' && (
           <form onSubmit={handleAdminEmailSubmit}>
             <p className="text-sm text-gray-600 mb-4 text-center">Ingresa tu correo autorizado para continuar.</p>
@@ -288,7 +268,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </form>
         )}
 
-        {/* STEP 2A: SETUP PASSWORD */}
         {currentView === 'ADMIN_SETUP' && (
           <form onSubmit={handleAdminSetup}>
              <div className="mb-4 text-center">
@@ -299,210 +278,209 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <p className="text-sm text-gray-500">Es tu primer ingreso. Configura tu contraseña.</p>
              </div>
              
-             <InputField label="Nueva Contraseña" type="password" value={adminPass} onChange={setAdminPass} icon={Lock} required placeholder="Mínimo 6 caracteres" />
-             <InputField label="Confirmar Contraseña" type="password" value={adminPassConfirm} onChange={setAdminPassConfirm} icon={Lock} required placeholder="Repite la contraseña" />
-
+             <InputField label="Nueva Contraseña" type="password" value={adminPass} onChange={setAdminPass} icon={Lock} required />
+             <InputField label="Confirmar Contraseña" type="password" value={adminPassConfirm} onChange={setAdminPassConfirm} icon={Lock} required />
+             
              <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none mt-4"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 mt-4"
             >
-              {loading ? 'Configurando...' : 'Guardar y Acceder'}
+              {loading ? 'Configurando...' : 'Activar Cuenta'}
             </button>
           </form>
         )}
 
-        {/* STEP 2B: LOGIN */}
         {currentView === 'ADMIN_LOGIN' && (
-           <form onSubmit={handleAdminLogin}>
-              <div className="mb-4 text-center">
-                 <h3 className="text-lg font-bold text-gray-800">Hola de nuevo, {adminName}</h3>
-                 <p className="text-sm text-gray-500">{adminEmail}</p>
+          <form onSubmit={handleAdminLogin}>
+            <div className="mb-6 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-600">
+                <UserIcon size={32} />
               </div>
-
-              <InputField label="Contraseña" type="password" value={adminPass} onChange={setAdminPass} icon={Lock} required />
-              
-              <button
-               type="submit"
-               disabled={loading}
-               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none mt-4"
-             >
-               {loading ? 'Entrando...' : 'Iniciar Sesión'}
-             </button>
-           </form>
+              <h3 className="text-lg font-bold text-gray-800">{adminName}</h3>
+              <p className="text-sm text-gray-500">{adminEmail}</p>
+            </div>
+            
+            <InputField label="Contraseña" type="password" value={adminPass} onChange={setAdminPass} icon={Lock} required />
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gray-800 hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50 mt-4"
+            >
+              {loading ? 'Iniciando...' : 'Ingresar'}
+            </button>
+          </form>
         )}
       </div>
     </div>
   );
 
-  const renderStudentAuth = () => (
-    <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden my-8 relative z-10">
-       <button 
-        onClick={() => { setError(''); setCurrentView('LANDING'); }} 
-        className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 z-10"
+  const renderStudentFlow = () => (
+    <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden my-8 relative z-10 transition-all duration-500">
+      <button 
+        onClick={() => { setError(''); setCurrentView('LANDING'); setIsRegistering(false); }} 
+        className="absolute top-4 left-4 text-gray-400 hover:text-gray-600 z-20"
       >
         <ArrowLeft size={24} />
       </button>
 
-      <div className="bg-indigo-600 px-8 py-6 text-white text-center">
-        <h2 className="text-3xl font-bold tracking-tight">Catecismo Virtual</h2>
-        <p className="mt-2 text-indigo-100 text-sm">{isRegistering ? 'Crea tu cuenta' : 'Ingresa a tu cuenta'}</p>
+      <div className="bg-indigo-600 px-8 py-6 text-white text-center relative">
+        <h2 className="text-2xl font-bold tracking-tight">{isRegistering ? 'Inscripción de Catecúmeno' : 'Bienvenido de Nuevo'}</h2>
+        <p className="mt-2 text-indigo-100 text-sm">Formación en la fe para la vida.</p>
       </div>
 
-      <div className="px-8 py-6">
-          {error && (
-            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-sm text-red-700 rounded">
-              <p>{error}</p>
-            </div>
+      <div className="px-8 py-6 max-h-[70vh] overflow-y-auto">
+        {error && (
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 text-sm text-red-700 rounded flex items-center">
+             <div className="mr-2">⚠️</div> {error}
+          </div>
+        )}
+
+        <form onSubmit={handleStudentAuth} className="space-y-4">
+          
+          {isRegistering && (
+            <>
+               <div className="p-4 bg-indigo-50 rounded-lg mb-4 text-indigo-800 text-sm">
+                  Completa tu ficha de inscripción para comenzar tus módulos.
+               </div>
+               <InputField label="Nombre Completo" value={fullName} onChange={setFullName} icon={UserIcon} required placeholder="Como aparece en tu acta" />
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <InputField label="Edad" type="number" value={age} onChange={(v: string) => setAge(parseInt(v))} icon={Calendar} required min={15} max={99} />
+                 
+                 <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado Civil <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                        <Heart size={18} className="absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
+                        <select 
+                            value={maritalStatus} 
+                            onChange={(e) => setMaritalStatus(e.target.value)}
+                            className="block w-full pl-10 pr-8 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm appearance-none"
+                        >
+                            {MARITAL_STATUS_OPTIONS.map(status => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
+                        </select>
+                        <ChevronDown size={16} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
+                    </div>
+                </div>
+               </div>
+
+               <InputField label="Lugar de Nacimiento" value={birthPlace} onChange={setBirthPlace} icon={MapPin} placeholder="Ciudad, Estado" />
+               <InputField label="Teléfono (WhatsApp)" type="tel" value={phone} onChange={setPhone} icon={Phone} required placeholder="Para notificaciones" />
+               
+               <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dirección <span className="text-red-500">*</span></label>
+                  <textarea 
+                    value={address} 
+                    onChange={(e) => setAddress(e.target.value)} 
+                    className="w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-indigo-500" 
+                    rows={2}
+                    required
+                  />
+               </div>
+
+               <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sacramentos a realizar <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setSacramentListOpen(!isSacramentListOpen)}
+                      className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 flex items-center justify-between text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <span className="block truncate text-sm text-gray-900">
+                        {selectedSacraments.length > 0 
+                          ? `${selectedSacraments.length} seleccionado(s)` 
+                          : 'Seleccionar...'}
+                      </span>
+                      <ChevronDown size={16} className={`text-gray-500 transition-transform ${isSacramentListOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isSacramentListOpen && (
+                      <div className="absolute mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto sm:text-sm z-50 border border-gray-200">
+                        {AVAILABLE_SACRAMENTS.map((sac) => {
+                          const isSelected = selectedSacraments.includes(sac);
+                          return (
+                            <div 
+                              key={sac}
+                              onClick={() => toggleSacrament(sac)}
+                              className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50 flex items-center"
+                            >
+                              <div className={`mr-3 ${isSelected ? 'text-indigo-600' : 'text-gray-400'}`}>
+                                {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                              </div>
+                              <span className={`block truncate ${isSelected ? 'font-semibold text-indigo-900' : 'font-normal text-gray-900'}`}>
+                                {sac}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedSacraments.map(s => (
+                      <span key={s} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+               </div>
+            </>
           )}
 
-          <form onSubmit={handleStudentAuth}>
-             {isRegistering ? (
-                 <div className="space-y-2">
-                    <InputField label="Nombre Completo" value={fullName} onChange={setFullName} icon={UserIcon} required />
-                    <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required />
-                    
-                    {/* Password Fields with Confirmation */}
-                    <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required placeholder="Crea una contraseña" />
-                    <InputField label="Confirmar Contraseña" type="password" value={studentPassConfirm} onChange={setStudentPassConfirm} icon={Lock} required placeholder="Repite tu contraseña" />
-                    
-                    {/* NEW: Age and Marital Status */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <InputField 
-                            label="Edad" 
-                            type="number" 
-                            value={age} 
-                            onChange={setAge} 
-                            icon={Calendar} 
-                            required 
-                            min={18} 
-                            max={99} 
-                        />
-                        
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Estado Civil <span className="text-red-500">*</span></label>
-                            <div className="relative">
-                                <Heart size={18} className="absolute left-3 top-2.5 text-gray-400 pointer-events-none" />
-                                <select 
-                                    value={maritalStatus} 
-                                    onChange={(e) => setMaritalStatus(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm appearance-none"
-                                >
-                                    {MARITAL_STATUS_OPTIONS.map(status => (
-                                        <option key={status} value={status}>{status}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown size={16} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-                            </div>
-                        </div>
-                    </div>
+          <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required />
+          <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required />
+          
+          {isRegistering && (
+             <InputField label="Confirmar Contraseña" type="password" value={studentPassConfirm} onChange={setStudentPassConfirm} icon={Lock} required />
+          )}
 
-                    <InputField label="Lugar Nacimiento" value={birthPlace} onChange={setBirthPlace} icon={MapPin} />
-                    <InputField label="Teléfono (WhatsApp)" type="tel" value={phone} onChange={setPhone} icon={Phone} required />
-                    <InputField label="Dirección Actual" value={address} onChange={setAddress} icon={MapPin} />
-                    
-                    {/* Collapsible Multi-Select for Sacraments */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sacramentos a Realizar <span className="text-red-500">*</span></label>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setSacramentListOpen(!isSacramentListOpen)}
-                          className="w-full bg-white border border-gray-300 rounded-md py-2 px-3 flex items-center justify-between text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                          <span className="block truncate text-sm text-gray-900">
-                            {selectedSacraments.length > 0 
-                              ? `${selectedSacraments.length} seleccionado(s)` 
-                              : 'Seleccionar...'}
-                          </span>
-                          <ChevronDown size={16} className={`text-gray-500 transition-transform ${isSacramentListOpen ? 'rotate-180' : ''}`} />
-                        </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 mt-6 transition-colors"
+          >
+            {loading ? (isRegistering ? 'Registrando...' : 'Iniciando...') : (isRegistering ? 'Completar Registro' : 'Iniciar Sesión')}
+          </button>
+        </form>
 
-                        {isSacramentListOpen && (
-                          <div className="mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto sm:text-sm z-10 border border-gray-200">
-                            {AVAILABLE_SACRAMENTS.map((sac) => {
-                              const isSelected = selectedSacraments.includes(sac);
-                              return (
-                                <div 
-                                  key={sac}
-                                  onClick={() => toggleSacrament(sac)}
-                                  className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-50 flex items-center"
-                                >
-                                  <div className={`mr-3 ${isSelected ? 'text-indigo-600' : 'text-gray-400'}`}>
-                                    {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
-                                  </div>
-                                  <span className={`block truncate ${isSelected ? 'font-semibold text-indigo-900' : 'font-normal text-gray-900'}`}>
-                                    {sac}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {selectedSacraments.map(s => (
-                          <span key={s} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full mt-6 flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                    >
-                      {loading ? 'Registrando...' : 'Crear Cuenta'}
-                    </button>
-                 </div>
-             ) : (
-                 <>
-                    <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required />
-                    <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required />
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 mt-6"
-                    >
-                      {loading ? 'Entrando...' : 'Ingresar'}
-                    </button>
-                 </>
-             )}
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {isRegistering ? '¿Ya tienes cuenta?' : '¿Eres nuevo catecúmeno?'}
-              <button
-                onClick={() => { setIsRegistering(!isRegistering); setError(''); setStudentPassConfirm(''); }}
-                className="ml-1 font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none underline"
-              >
-                {isRegistering ? 'Inicia Sesión' : 'Regístrate Aquí'}
-              </button>
-            </p>
-          </div>
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            {isRegistering ? '¿Ya tienes cuenta?' : '¿Es tu primera vez aquí?'}
+            <button
+              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+              className="ml-2 font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none underline"
+            >
+              {isRegistering ? 'Inicia Sesión' : 'Regístrate'}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-4">
-       {/* Background */}
-       <div className="absolute inset-0 z-0">
-          <img
-            src={config?.landingBackground || 'https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&q=80&w=1000'}
-            alt="Background"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/60"></div>
-       </div>
+    <div 
+        className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-4 relative overflow-hidden"
+    >
+        {/* Dynamic Background */}
+        <div 
+            className="absolute inset-0 bg-cover bg-center opacity-40 z-0 transition-all duration-1000"
+            style={{ 
+                backgroundImage: `url(${config?.landingBackground || 'https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?q=80&w=2560'})` 
+            }}
+        ></div>
+        <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 to-indigo-900/90 z-0"></div>
 
-       {/* Views */}
-       {currentView === 'LANDING' && renderLanding()}
-       {(currentView.startsWith('ADMIN')) && renderAdminFlow()}
-       {currentView === 'STUDENT_AUTH' && renderStudentAuth()}
+        {currentView === 'LANDING' && renderLanding()}
+        {(currentView === 'ADMIN_EMAIL' || currentView === 'ADMIN_LOGIN' || currentView === 'ADMIN_SETUP') && renderAdminFlow()}
+        {currentView === 'STUDENT_AUTH' && renderStudentFlow()}
+
+        <footer className="absolute bottom-4 text-center text-gray-400 text-xs z-10">
+            © {new Date().getFullYear()} Orden Franciscana TOR - Provincia de México. Todos los derechos reservados.
+        </footer>
     </div>
   );
 };

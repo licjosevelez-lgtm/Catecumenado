@@ -1,11 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, Module, Topic } from '../types';
-// IMPORTACIÓN ACTUALIZADA: Usamos SupabaseService aliada como MockService
 import { SupabaseService as MockService } from '../services/supabase';
 import { PlayCircle, CheckCircle, Lock, BookOpen, Video, FileText, Download, User as UserIcon, Save, ChevronDown, CheckSquare, Square, MapPin, Phone, Calendar, Mail, ExternalLink, Heart } from 'lucide-react';
 import { Quiz } from './Quiz';
-// NUEVOS IMPORTS PARA LA GRÁFICA SOLICITADA
 import { PieChart, Pie, Cell } from 'recharts';
 
 interface Props {
