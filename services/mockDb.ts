@@ -279,18 +279,24 @@ export const MockService = {
     return JSON.parse(stored);
   },
 
-  updateModule: async (updatedModule: Module): Promise<void> => {
-    await delay(500);
-    const modules = await MockService.getModules();
-    const index = modules.findIndex(m => m.id === updatedModule.id);
-    
-    if (index !== -1) {
-      modules[index] = updatedModule;
-    } else {
-      modules.push(updatedModule);
+    updateModule: async (updatedModule: Module): Promise<void> => {
+    // 1. Conectamos con Supabase para actualizar la tabla 'modules'
+    const { error } = await supabase
+      .from('modules')
+      .update({
+        title: updatedModule.title,
+        description: updatedModule.description,
+        image_url: updatedModule.imageUrl,
+        topics: updatedModule.topics, // Aquí van los videos y temas
+        questions: updatedModule.questions,
+        documents: updatedModule.resources
+      })
+      .eq('id', updatedModule.id); // Buscamos el módulo por su ID
+      
+    if (error) {
+        console.error("Error guardando módulo en Supabase", error);
+        throw new Error("No se pudo guardar los cambios.");
     }
-    
-    localStorage.setItem(KEY_MODULES, JSON.stringify(modules));
   },
 
   getAppConfig: (): AppConfig => {
