@@ -1249,6 +1249,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                                     type="text" 
                                     value={topic.title}
                                     onChange={(e) => handleTopicChange(index, 'title', e.target.value)}
+                                    onBlur={(e) => handleTopicChange(index, 'videoUrl', normalizeYoutube(e.target.value))}
                                     className="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm font-medium text-gray-900"
                                     placeholder="Ej: La Creación"
                                 />
