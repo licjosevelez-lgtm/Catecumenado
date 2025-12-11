@@ -1242,24 +1242,27 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                             <X size={18}/>
                         </button>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                            {/* INPUT 1: TÍTULO (Sin el onBlur) */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Título del Tema {index + 1}</label>
                                 <input 
                                     type="text" 
                                     value={topic.title}
                                     onChange={(e) => handleTopicChange(index, 'title', e.target.value)}
-                                    onBlur={(e) => handleTopicChange(index, 'videoUrl', normalizeYoutube(e.target.value))}
                                     className="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm font-medium text-gray-900"
                                     placeholder="Ej: La Creación"
                                 />
                             </div>
+
+                            {/* INPUT 2: VIDEO (Con el onBlur) */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1 flex items-center"><Video size={12} className="mr-1"/> Link de YouTube</label>
                                 <input 
                                     type="text" 
                                     value={topic.videoUrl}
                                     onChange={(e) => handleTopicChange(index, 'videoUrl', e.target.value)}
+                                    onBlur={(e) => handleTopicChange(index, 'videoUrl', normalizeYoutube(e.target.value))}
                                     className="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-600"
                                     placeholder="https://youtube.com/..."
                                 />
