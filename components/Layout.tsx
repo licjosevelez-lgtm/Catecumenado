@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { LogOut, Bell, BookOpen, BarChart2, User as UserIcon, Settings, Menu, X, LayoutDashboard, Library, ClipboardCheck, Shield, Megaphone, Calendar } from 'lucide-react';
-import { MockService } from '../services/mockDb';
+// IMPORTANTE: Cambiamos a SupabaseService
+import { SupabaseService as MockService } from '../services/supabase';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,10 +21,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
 
   useEffect(() => {
     if (user) {
-      const interval = setInterval(() => {
-        setNotifications(MockService.getNotifications(user.id));
-      }, 2000);
-      return () => clearInterval(interval);
+      // SupabaseService.getNotifications devuelve array vacío por ahora para evitar errores
+      const notifs = MockService.getNotifications(user.id);
+      setNotifications(notifs);
     }
   }, [user]);
 
