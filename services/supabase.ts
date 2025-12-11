@@ -120,7 +120,7 @@ export class SupabaseService {
       return this.mapUser(data);
   }
 
-  static async getUsers() {
+  static async getAllUsers() {
     const { data, error } = await supabase.from('users').select('*').eq('role', 'STUDENT');
     if (error) return [];
     return data.map((u: any) => this.mapUser(u));
