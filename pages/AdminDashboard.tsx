@@ -369,20 +369,32 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
 
   // --- SUB-VIEWS RENDERERS ---
 
-  const renderStatsView = () => {
+ const renderStatsView = () => {
+    // 1. Cálculos de estadísticas
     const students = users.filter(u => u.role !== 'ADMIN');
     const totalStudents = students.length;
+    // Usuarios que no han completado ningún módulo
+    const stuckUsers = users.filter(u => u.role === 'STUDENT' && u.completedModules.length === 0).length;
+    // Total de módulos completados globalmente
     const totalCompletions = students.reduce((acc, s) => acc + s.completedModules.length, 0);
+    // Usuarios listos para presencial (todos los módulos completados)
     const readyForInPerson = students.filter(s => modules.length > 0 && s.completedModules.length === modules.length).length;
 
+    // 2. Preparar datos para la gráfica
     const completionStats = modules.map(m => ({
       name: `Módulo ${m.order}`,
       completados: students.filter(s => s.completedModules.includes(m.id)).length,
-      pendientes: students.length - students.filter(s => s.completedModules.includes(m.id)).length
+      pendientes: Math.max(0, students.length - students.filter(s => s.completedModules.includes(m.id)).length)
     }));
+
+    // Evitar que la gráfica falle si no hay datos
+    if (completionStats.length === 0) {
+        completionStats.push({ name: 'Sin datos', completados: 0, pendientes: 0 });
+    }
 
     return (
       <div className="space-y-8">
+        {/* Tarjetas de Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="flex items-center text-indigo-600 mb-2">
@@ -413,26 +425,25 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
             <div className="flex items-center text-orange-500 mb-2">
               <AlertTriangle className="mr-2" /> <span className="font-bold">Usuarios Estancados</span>
             </div>
-            <p className="text-4xl font-bold text-gray-800">
-              {students.filter(s => s.completedModules.length === 0).length}
-            </p>
+            <p className="text-4xl font-bold text-gray-800">{stuckUsers}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
+        {/* Gráfica Blindada (Sin ResponsiveContainer) */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 mb-6">Progreso Global de la Clase</h3>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={completionStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="completados" fill="#4f46e5" name="Aprobados" />
-                <Bar dataKey="pendientes" fill="#e5e7eb" name="Pendientes" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-80 w-full overflow-x-auto">
+            <div style={{ minWidth: '600px' }}>
+                <BarChart width={800} height={300} data={completionStats}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip cursor={{fill: '#f3f4f6'}} />
+                    <Legend />
+                    <Bar dataKey="completados" fill="#4f46e5" name="Aprobados" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="pendientes" fill="#e5e7eb" name="Pendientes" radius={[4, 4, 0, 0]} />
+                </BarChart>
+            </div>
           </div>
         </div>
       </div>
