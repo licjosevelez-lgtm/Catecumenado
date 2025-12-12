@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
@@ -9,6 +8,29 @@ const supabaseKey = 'sb_publishable_E9oPLgg2ZNx-ovOTTtM81A_s4tKPG3f';
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export class SupabaseService {
+
+  // --- SETTINGS (MENSAJE DE BIENVENIDA) ---
+  static async getWelcomeMessage(): Promise<string> {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'welcome_message')
+      .single();
+    
+    // Fallback por si la tabla no existe o está vacía
+    if (error || !data) {
+        return "Estamos felices de acompañarte. Comienza en el Módulo 1.";
+    }
+    return data.value;
+  }
+
+  static async updateWelcomeMessage(text: string): Promise<void> {
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'welcome_message', value: text });
+    
+    if (error) throw new Error("Error guardando mensaje: " + error.message);
+  }
 
   // --- STORAGE ---
   static async uploadFile(file: File): Promise<string> {
@@ -105,7 +127,8 @@ export class SupabaseService {
   }
 
   static async register(userData: any): Promise<User> {
-    const { data, error } = await supabase
+    // 1. Insertar Usuario
+    const { data: newUser, error } = await supabase
       .from('users')
       .insert([{
         name: userData.name,
@@ -117,14 +140,27 @@ export class SupabaseService {
         sacraments: userData.sacramentTypes || [],
         phone: userData.phone,
         address: userData.address,
-        birth_place: userData.birthPlace, // Aseguramos que se guarde el lugar de nacimiento
+        birth_place: userData.birthPlace, 
         completed_modules: []
       }])
       .select()
       .single();
 
     if (error) throw new Error('Error al registrar. El correo podría ya existir.');
-    return this.mapUser(data);
+
+    // 2. Obtener Mensaje de Bienvenida Dinámico
+    const welcomeMsg = await this.getWelcomeMessage();
+
+    // 3. Crear Notificación de Bienvenida
+    await supabase.from('notifications').insert([{
+        user_id: newUser.id,
+        message: welcomeMsg,
+        read: false,
+        timestamp: Date.now(),
+        type: 'success'
+    }]);
+
+    return this.mapUser(newUser);
   }
 
   static async getAllUsers(): Promise<User[]> {
