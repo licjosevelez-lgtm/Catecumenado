@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt } from '../types';
 
@@ -228,14 +229,12 @@ export class SupabaseService {
   static async sendBroadcast(title: string, body: string, importance: string) { }
   static getAttempts(userId: string): QuizAttempt[] { return []; }
 
-  // CORRECCIÓN: Implementación real de submitQuiz
   static async submitQuiz(userId: string, moduleId: string, score: number): Promise<{ passed: boolean; lockedUntil?: number }> { 
      const passed = score >= 80;
      let lockedUntil: number | undefined;
      
      if (passed) {
         try {
-            // 1. Obtener usuario actual para ver sus módulos
             const { data: user, error: fetchError } = await supabase
                 .from('users')
                 .select('completed_modules')
@@ -244,26 +243,19 @@ export class SupabaseService {
             
             if (fetchError) throw fetchError;
 
-            // 2. Agregar el módulo si no existe
             const currentModules = user.completed_modules || [];
             if (!currentModules.includes(moduleId)) {
                 const newModules = [...currentModules, moduleId];
-                
                 const { error: updateError } = await supabase
                     .from('users')
                     .update({ completed_modules: newModules })
                     .eq('id', userId);
-                
                 if (updateError) throw updateError;
             }
-
         } catch (error) {
             console.error("Error actualizando progreso en Supabase:", error);
-            // Aun si falla la DB, retornamos el resultado local para no bloquear al usuario visualmente,
-            // aunque idealmente deberíamos mostrar error.
         }
      } else {
-        // En caso de reprobar, se bloquea por 48 horas (simulado por ahora, ya que no hay tabla de intentos en DB conectada en este código)
         lockedUntil = Date.now() + (48 * 60 * 60 * 1000);
      }
 
