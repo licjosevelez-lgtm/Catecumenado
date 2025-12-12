@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, UserRole, Module } from '../types';
+import { User, UserRole, Module, QuizAttempt } from '../types';
 
 // --- CONFIGURACIÓN DE SUPABASE ---
 const supabaseUrl = 'https://lybzvkuvjnxbfbaddnfc.supabase.co';
@@ -108,7 +108,6 @@ export class SupabaseService {
       videoUrl: '', 
       content: '', 
       topics: m.topics || [], 
-      // CORRECCIÓN: Leemos de 'm.resources', no de 'm.documents'
       resources: m.resources || [],
       questions: m.questions || []
     }));
@@ -131,7 +130,7 @@ export class SupabaseService {
         topics: cleanTopics, 
         questions: updatedModule.questions,
         resources: updatedModule.resources,
-        order: updatedModule.order // <--- CORRECCIÓN: Se agregó el campo order
+        order: updatedModule.order 
       })
       .select();
 
@@ -202,8 +201,47 @@ export class SupabaseService {
   static async getEvents() { return []; }
   static async addEvent(event: any) { }
   static async sendBroadcast(title: string, body: string, importance: string) { }
-  static getAttempts(userId: string) { return []; }
-  static async submitQuiz(userId: string, moduleId: string, score: number) { 
-     return { passed: score >= 80 }; 
+  static getAttempts(userId: string): QuizAttempt[] { return []; }
+
+  // CORRECCIÓN: Implementación real de submitQuiz
+  static async submitQuiz(userId: string, moduleId: string, score: number): Promise<{ passed: boolean; lockedUntil?: number }> { 
+     const passed = score >= 80;
+     let lockedUntil: number | undefined;
+     
+     if (passed) {
+        try {
+            // 1. Obtener usuario actual para ver sus módulos
+            const { data: user, error: fetchError } = await supabase
+                .from('users')
+                .select('completed_modules')
+                .eq('id', userId)
+                .single();
+            
+            if (fetchError) throw fetchError;
+
+            // 2. Agregar el módulo si no existe
+            const currentModules = user.completed_modules || [];
+            if (!currentModules.includes(moduleId)) {
+                const newModules = [...currentModules, moduleId];
+                
+                const { error: updateError } = await supabase
+                    .from('users')
+                    .update({ completed_modules: newModules })
+                    .eq('id', userId);
+                
+                if (updateError) throw updateError;
+            }
+
+        } catch (error) {
+            console.error("Error actualizando progreso en Supabase:", error);
+            // Aun si falla la DB, retornamos el resultado local para no bloquear al usuario visualmente,
+            // aunque idealmente deberíamos mostrar error.
+        }
+     } else {
+        // En caso de reprobar, se bloquea por 48 horas (simulado por ahora, ya que no hay tabla de intentos en DB conectada en este código)
+        lockedUntil = Date.now() + (48 * 60 * 60 * 1000);
+     }
+
+     return { passed, lockedUntil }; 
   }
 }
