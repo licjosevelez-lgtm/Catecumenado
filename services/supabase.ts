@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module } from '../types';
 
@@ -129,10 +128,10 @@ export class SupabaseService {
         title: updatedModule.title,
         description: updatedModule.description,
         image_url: updatedModule.imageUrl,
-        topics: cleanTopics, // AQUÍ se guardan los videos de YouTube dentro de cada objeto topic
+        topics: cleanTopics, 
         questions: updatedModule.questions,
-        // CORRECCIÓN: Guardamos en la columna 'resources', no en 'documents'
-        resources: updatedModule.resources 
+        resources: updatedModule.resources,
+        order: updatedModule.order // <--- CORRECCIÓN: Se agregó el campo order
       })
       .select();
 
