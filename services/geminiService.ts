@@ -6,15 +6,22 @@ import { Question, Module } from '../types';
 
 const MODEL_NAME = 'gemini-2.5-flash';
 
+// Helper seguro para obtener variables de entorno en cualquier entorno (Vite/Node)
+const getApiKey = () => {
+  if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+    return process.env.API_KEY;
+  }
+  // Si usas Vite: import.meta.env.VITE_API_KEY (opcional, si decides configurarlo así)
+  return ''; 
+};
+
 export const GeminiService = {
   /**
    * Generates quiz questions based on a topic description.
    */
   generateQuizQuestions: async (topic: string, count: number = 3): Promise<Question[]> => {
     try {
-      // Initialize inside the function to safe-guard against missing keys during app load
-      // Using process.env.API_KEY as strictly required
-      const apiKey = process.env.API_KEY;
+      const apiKey = getApiKey();
       
       // If no key is present, throw specific error to be caught below
       if (!apiKey) throw new Error("API Key not found in environment variables");
@@ -70,7 +77,7 @@ export const GeminiService = {
    */
   analyzeStudentProgress: async (studentName: string, completedModules: string[], totalModules: number) => {
     try {
-      const apiKey = process.env.API_KEY;
+      const apiKey = getApiKey();
       if (!apiKey) return `¡Sigue adelante, ${studentName}! (IA no disponible)`;
 
       const ai = new GoogleGenAI({ apiKey: apiKey });
