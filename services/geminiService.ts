@@ -1,18 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
 import { Question, Module } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// REMOVED TOP-LEVEL INITIALIZATION to prevent white screen on load if key is missing
+// const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// Using the recommended model for text tasks
 const MODEL_NAME = 'gemini-2.5-flash';
 
 export const GeminiService = {
   /**
    * Generates quiz questions based on a topic description.
-   * Demonstrates strict adherence to the Gemini API guidelines.
    */
   generateQuizQuestions: async (topic: string, count: number = 3): Promise<Question[]> => {
     try {
+      // Initialize inside the function to safe-guard against missing keys during app load
+      // Using process.env.API_KEY as strictly required
+      const apiKey = process.env.API_KEY;
+      
+      // If no key is present, throw specific error to be caught below
+      if (!apiKey) throw new Error("API Key not found in environment variables");
+
+      const ai = new GoogleGenAI({ apiKey: apiKey });
+
       const prompt = `
         Create a JSON array of ${count} quiz questions about "${topic}" for a Catholic Catechesis course.
         Structure: 
@@ -49,7 +57,7 @@ export const GeminiService = {
       return [
         {
           id: 'err1',
-          text: `(Error generando preguntas IA: ${topic}) ¿Cuál es la virtud teologal de la confianza?`,
+          text: `(Modo Offline/Error IA: ${topic}) ¿Cuál es la virtud teologal de la confianza?`,
           options: ['Fe', 'Esperanza', 'Caridad', 'Prudencia'],
           correctIndex: 1
         }
@@ -62,6 +70,11 @@ export const GeminiService = {
    */
   analyzeStudentProgress: async (studentName: string, completedModules: string[], totalModules: number) => {
     try {
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) return `¡Sigue adelante, ${studentName}! (IA no disponible)`;
+
+      const ai = new GoogleGenAI({ apiKey: apiKey });
+
       const response = await ai.models.generateContent({
         model: MODEL_NAME,
         contents: `
