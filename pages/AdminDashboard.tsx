@@ -366,6 +366,31 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     }
   };
 
+  // --- DELETE MODULE HANDLER ---
+  const handleDeleteModule = async () => {
+      if (!editingModule) return;
+      if (!window.confirm(`¿Estás seguro de ELIMINAR el módulo "${editingModule.title}"? Esta acción borrará todo el contenido, archivos y exámenes asociados y NO SE PUEDE DESHACER.`)) {
+          return;
+      }
+      
+      try {
+          await MockService.deleteModule(editingModule.id);
+          const updatedModules = modules.filter(m => m.id !== editingModule.id);
+          setModules(updatedModules);
+          
+          if (updatedModules.length > 0) {
+              setEditingModule(updatedModules[0]);
+              setCurrentModuleIndex(0);
+          } else {
+              setEditingModule(null);
+              setCurrentModuleIndex(0);
+          }
+          alert("Módulo eliminado correctamente.");
+      } catch (e: any) {
+          alert("Error eliminando: " + e.message);
+      }
+  };
+
   const handleAddTopic = () => {
       if (!editingModule) return;
       const newTopic: Topic = { id: Date.now().toString(), title: '', videoUrl: '', summary: '' };
@@ -407,29 +432,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   };
 
   // --- QUIZ MANAGEMENT LOGIC ---
-  const handleGenerateQuestions = async () => {
-    if (!editingQuizModule) return;
-    const topic = editingQuizModule.topics[0]?.title || editingQuizModule.title;
-    if (!topic) {
-        alert("El módulo necesita un título o temas para generar preguntas.");
-        return;
-    }
-    
-    setLoading(true);
-    try {
-        const newQuestions = await GeminiService.generateQuizQuestions(topic, 3);
-        const updatedModule = { 
-            ...editingQuizModule, 
-            questions: [...editingQuizModule.questions, ...newQuestions] 
-        };
-        setEditingQuizModule(updatedModule);
-    } catch (e: any) {
-        alert("Error IA: " + e.message);
-    } finally {
-        setLoading(false);
-    }
-  };
-
   const handleAddQuestion = () => {
     if (!editingQuizModule) return;
     const newQ: Question = {
@@ -488,16 +490,10 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                          <h3 className="font-bold text-lg text-gray-800">Preguntas: {editingQuizModule.title}</h3>
                          <div className="flex gap-2">
                             <button 
-                                onClick={handleGenerateQuestions}
-                                className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 font-medium"
-                            >
-                                <RotateCcw size={18} /> Generar con IA
-                            </button>
-                            <button 
                                 onClick={handleAddQuestion}
                                 className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-medium"
                             >
-                                <Plus size={18} /> Agregar Manual
+                                <Plus size={18} /> Agregar Pregunta
                             </button>
                          </div>
                      </div>
@@ -505,7 +501,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                      <div className="space-y-6">
                          {editingQuizModule.questions.length === 0 && (
                              <div className="text-center text-gray-400 py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                                 No hay preguntas configuradas. Usa la IA o agrega una manualmente.
+                                 No hay preguntas configuradas.
                              </div>
                          )}
                          
@@ -749,114 +745,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         </div>
     );
   };
-  
-  const renderNotificationsView = () => {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
-        <div className="lg:col-span-1 space-y-8 flex flex-col h-fit">
-            
-            {/* 1. SECCIÓN: REDACTAR AVISO */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-                <div className="mb-6 pb-4 border-b border-gray-100"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Send className="mr-2 text-indigo-600" size={20}/> Redactar Aviso</h3></div>
-                <form onSubmit={handleSendBroadcast} className="space-y-4">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Título</label><input type="text" value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5" required/></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Mensaje</label><textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none" required/></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Importancia</label><div className="flex gap-4"><label className="flex items-center"><input type="radio" name="importance" value="normal" checked={broadcastImportance === 'normal'} onChange={() => setBroadcastImportance('normal')} className="mr-2"/>Normal</label><label className="flex items-center"><input type="radio" name="importance" value="high" checked={broadcastImportance === 'high'} onChange={() => setBroadcastImportance('high')} className="mr-2 text-red-600"/>Alta</label></div></div>
-                    <button type="submit" disabled={sendingBroadcast} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow hover:bg-indigo-700 disabled:opacity-70 mt-4">{sendingBroadcast ? 'Enviando...' : 'Enviar a Todos'}</button>
-                </form>
-            </div>
-
-            {/* 2. SECCIÓN: CONFIGURACIÓN BIENVENIDA AUTOMÁTICA */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
-                <div className="mb-4 pb-2 border-b border-gray-100">
-                    <h3 className="text-md font-bold text-gray-800 flex items-center">
-                        <MessageSquare className="mr-2 text-green-600" size={18}/> Mensaje de Bienvenida Automático
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1">Este mensaje se envía automáticamente al registrarse un alumno nuevo.</p>
-                </div>
-                <textarea 
-                    value={welcomeMessage} 
-                    onChange={e => setWelcomeMessage(e.target.value)} 
-                    className="w-full border border-gray-300 rounded-lg p-3 h-28 resize-none text-sm mb-4 focus:ring-2 focus:ring-green-500 focus:border-green-500" 
-                    placeholder="Escribe el mensaje de bienvenida..."
-                />
-                <button 
-                    onClick={handleSaveWelcomeMessage}
-                    disabled={savingWelcome}
-                    className="w-full bg-green-600 text-white py-2 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-70 text-sm flex justify-center items-center"
-                >
-                    {savingWelcome ? 'Guardando...' : 'Guardar Mensaje'}
-                </button>
-            </div>
-
-        </div>
-
-        {/* 3. SECCIÓN: HISTORIAL DE AVISOS */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Megaphone className="mr-2 text-gray-600" size={20}/> Historial de Comunicados</h3></div>
-          <div className="overflow-y-auto p-0 flex-1">
-            {broadcastHistory.length === 0 ? (<div className="p-10 text-center text-gray-400">No hay comunicados.</div>) : (
-              <div className="divide-y divide-gray-100">
-                  {broadcastHistory.map((b) => (
-                      <div key={b.id} className="p-6 hover:bg-gray-50 group relative">
-                          <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-bold text-gray-900">{b.title}</h4>
-                              <div className="flex gap-2">
-                                  {b.importance === 'high' && <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">URGENTE</span>}
-                              </div>
-                          </div>
-                          <p className="text-gray-600 mb-3 whitespace-pre-wrap">{b.body}</p>
-                          <div className="text-xs text-gray-400 flex justify-between items-center">
-                              <span>Enviado: {new Date(b.sentAt).toLocaleString()}</span>
-                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => handleLoadBroadcastToForm(b)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Reenviar / Cargar Datos">
-                                      <RefreshCw size={16}/>
-                                  </button>
-                                  <button onClick={() => handleDeleteBroadcast(b.id)} className="text-red-600 hover:bg-red-50 p-1 rounded" title="Eliminar del Historial">
-                                      <Trash2 size={16}/>
-                                  </button>
-                              </div>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderTeamView = () => {
-      const isSuper = currentUser.isSuperAdmin;
-      return (
-          <div className="space-y-6">
-              {isSuper && (
-                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><Plus className="mr-2 text-indigo-600" size={20}/> Invitar Admin</h3>
-                      <form onSubmit={handleInviteAdmin} className="flex gap-4 items-end"><div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)} className="w-full border rounded p-2" required /></div><div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className="w-full border rounded p-2" required /></div><button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Invitar</button></form>
-                  </div>
-              )}
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Equipo</h3></div>
-                  <table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>{isSuper && <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>}</tr></thead><tbody className="bg-white divide-y divide-gray-200">{admins.map(admin => (<tr key={admin.id}><td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{admin.name}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{admin.email}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{admin.isSuperAdmin ? 'Super Admin' : 'Catequista'}</td>{isSuper && (<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">{!admin.isSuperAdmin && (<button onClick={() => handleResetAdmin(admin.id)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded border border-indigo-100 flex items-center ml-auto"><RotateCcw size={14} className="mr-1"/> Reset</button>)}</td>)}</tr>))}</tbody></table>
-              </div>
-          </div>
-      );
-  };
-  
-  const renderSettingsView = () => {
-      if (!appConfig) return <div>Cargando...</div>;
-      return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
-              <div className="p-6 border-b border-gray-100"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Settings className="mr-2 text-indigo-600" size={20}/> Configuración</h3></div>
-              <div className="p-8 space-y-8">
-                  <div><h4 className="font-bold text-gray-700 mb-4">Fondo Inicio</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div className="space-y-4"><div><label className="block text-sm font-medium text-gray-600 mb-1">URL</label><input type="text" value={appConfig.landingBackground} onChange={(e) => setAppConfig({...appConfig, landingBackground: e.target.value})} className="w-full border border-gray-300 rounded p-2 text-sm"/></div><div className="flex items-center gap-4"><input type="file" ref={settingsImageInputRef} className="hidden" onChange={handleSettingsImageUpload} accept="image/*"/><button onClick={() => settingsImageInputRef.current?.click()} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md font-medium text-sm hover:bg-gray-50 flex items-center shadow-sm w-full justify-center"><Upload size={16} className="mr-2"/> Subir</button></div></div><div className="border rounded-lg overflow-hidden h-48 bg-gray-100 relative group"><img src={appConfig.landingBackground} alt="Preview" className="w-full h-full object-cover" /></div></div></div>
-                  <div className="pt-6 border-t border-gray-100 flex justify-end"><button onClick={handleSaveConfig} className="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow hover:bg-indigo-700 flex items-center font-bold"><Save className="mr-2" /> Guardar</button></div>
-              </div>
-          </div>
-      );
-  };
 
   const renderModulesView = () => {
     if (modules.length === 0 && !editingModule) {
@@ -869,7 +757,12 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
             <button onClick={handlePrevModule} className="p-2 rounded-full hover:bg-gray-200 text-gray-600"><ChevronLeft size={24} /></button>
             <div className="text-center"><h3 className="font-bold text-gray-800 text-lg">{editingModule.title}</h3><span className="text-xs text-gray-500 font-medium">Módulo {currentModuleIndex + 1} de {modules.length}</span></div>
-            <div className="flex items-center gap-2"><button onClick={handleNextModule} className="p-2 rounded-full hover:bg-gray-200 text-gray-600 mr-2"><ChevronRight size={24} /></button><button onClick={handleCreateNewModule} className="flex items-center gap-1 text-sm bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-200 font-medium"><Plus size={16} /> New</button></div>
+            <div className="flex items-center gap-2">
+                <button onClick={handleDeleteModule} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="Eliminar Módulo"><Trash2 size={20}/></button>
+                <div className="h-6 w-px bg-gray-300 mx-2"></div>
+                <button onClick={handleNextModule} className="p-2 rounded-full hover:bg-gray-200 text-gray-600 mr-2"><ChevronRight size={24} /></button>
+                <button onClick={handleCreateNewModule} className="flex items-center gap-1 text-sm bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-200 font-medium"><Plus size={16} /> New</button>
+            </div>
         </div>
         <div className="p-8 space-y-8 overflow-y-auto flex-1" key={editingModule.id}>
           
@@ -971,6 +864,234 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         </div>
       </div>
     );
+  };
+
+  const renderNotificationsView = () => {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Send Broadcast */}
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+             <h3 className="font-bold text-gray-800 mb-4 flex items-center">
+                <Megaphone className="mr-2 text-indigo-600"/> Enviar Comunicado Masivo
+             </h3>
+             <form onSubmit={handleSendBroadcast} className="space-y-4">
+                 <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">Título</label>
+                     <input type="text" value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} className="w-full border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500" placeholder="Ej: Aviso Importante" required/>
+                 </div>
+                 <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">Mensaje</label>
+                     <textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} rows={4} className="w-full border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500" placeholder="Escribe tu mensaje aquí..." required/>
+                 </div>
+                 <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-1">Importancia</label>
+                     <select value={broadcastImportance} onChange={(e) => setBroadcastImportance(e.target.value as 'normal'|'high')} className="w-full border-gray-300 rounded-lg p-2 bg-white">
+                         <option value="normal">Normal (Información)</option>
+                         <option value="high">Alta (Alerta Roja)</option>
+                     </select>
+                 </div>
+                 <button type="submit" disabled={sendingBroadcast} className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 flex justify-center items-center">
+                     {sendingBroadcast ? 'Enviando...' : <><Send size={18} className="mr-2"/> Enviar a Todos</>}
+                 </button>
+             </form>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+             <h3 className="font-bold text-gray-800 mb-4 flex items-center">
+                <MessageSquare className="mr-2 text-indigo-600"/> Mensaje de Bienvenida Automático
+             </h3>
+             <div className="space-y-4">
+                 <p className="text-sm text-gray-500">Este mensaje se envía automáticamente a cada nuevo alumno que se registra.</p>
+                 <textarea value={welcomeMessage} onChange={e => setWelcomeMessage(e.target.value)} rows={3} className="w-full border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500" placeholder="Mensaje de bienvenida..."/>
+                 <button onClick={handleSaveWelcomeMessage} disabled={savingWelcome} className="w-full bg-gray-800 text-white py-2 rounded-lg font-bold hover:bg-gray-900 text-sm">
+                     {savingWelcome ? 'Guardando...' : 'Actualizar Mensaje'}
+                 </button>
+             </div>
+          </div>
+        </div>
+
+        {/* History */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-[600px]">
+            <div className="p-6 border-b border-gray-100 bg-gray-50">
+                <h3 className="font-bold text-gray-800">Historial de Comunicados</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {broadcastHistory.length === 0 && <p className="text-center text-gray-400 py-10">No hay historial.</p>}
+                {broadcastHistory.map(b => (
+                    <div key={b.id} className="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition-colors relative group bg-white shadow-sm">
+                         <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onClick={() => handleLoadBroadcastToForm(b)} className="text-gray-400 hover:text-indigo-600" title="Reutilizar"><RefreshCw size={16}/></button>
+                             <button onClick={() => handleDeleteBroadcast(b.id)} className="text-gray-400 hover:text-red-600" title="Eliminar del historial"><Trash2 size={16}/></button>
+                         </div>
+                         <div className="flex justify-between items-start mb-2">
+                             <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${b.importance === 'high' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                 {b.importance === 'high' ? 'Importante' : 'Normal'}
+                             </span>
+                             <span className="text-xs text-gray-400">{new Date(b.sentAt).toLocaleDateString()}</span>
+                         </div>
+                         <h4 className="font-bold text-gray-800">{b.title}</h4>
+                         <p className="text-sm text-gray-600 mt-1">{b.body}</p>
+                         <div className="mt-3 text-xs text-gray-400 flex items-center">
+                             <Users size={12} className="mr-1"/> Enviado a {b.recipientsCount} usuarios
+                         </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTeamView = () => {
+      return (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+                  <h3 className="font-bold text-gray-800 mb-6 flex items-center"><Shield className="mr-2 text-indigo-600"/> Invitar Nuevo Administrador</h3>
+                  <form onSubmit={handleInviteAdmin} className="space-y-4">
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                          <div className="relative">
+                              <UserCheck size={18} className="absolute left-3 top-2.5 text-gray-400"/>
+                              <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)} className="w-full pl-10 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500" required placeholder="Ej: Hno. Francisco"/>
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                          <div className="relative">
+                              <Send size={18} className="absolute left-3 top-2.5 text-gray-400"/>
+                              <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className="w-full pl-10 border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500" required placeholder="correo@institucion.org"/>
+                          </div>
+                      </div>
+                      <div className="pt-2">
+                          <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 flex justify-center items-center">
+                              <Plus size={18} className="mr-2"/> Enviar Invitación
+                          </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-4 text-center">
+                          El nuevo administrador podrá ingresar con su correo y configurar su contraseña en el primer acceso.
+                      </p>
+                  </form>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="p-6 border-b border-gray-100 bg-gray-50">
+                      <h3 className="font-bold text-gray-800">Equipo Actual</h3>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                      {admins.length === 0 && <div className="p-8 text-center text-gray-500">Cargando equipo...</div>}
+                      {admins.map(admin => (
+                          <div key={admin.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
+                              <div className="flex items-center">
+                                  <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold mr-3">
+                                      {admin.name.charAt(0)}
+                                  </div>
+                                  <div>
+                                      <h4 className="font-bold text-gray-800 text-sm">{admin.name} {admin.isSuperAdmin && <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded ml-2">Super Admin</span>}</h4>
+                                      <p className="text-xs text-gray-500">{admin.email}</p>
+                                  </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                  <span className={`text-xs px-2 py-1 rounded font-bold ${admin.password ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                      {admin.password ? 'Activo' : 'Pendiente'}
+                                  </span>
+                                  {currentUser.isSuperAdmin && !admin.isSuperAdmin && (
+                                      <button 
+                                          onClick={() => handleResetAdmin(admin.id)}
+                                          className="p-2 text-gray-400 hover:text-red-600 rounded-full hover:bg-red-50" 
+                                          title="Restablecer acceso"
+                                      >
+                                          <RotateCcw size={16}/>
+                                      </button>
+                                  )}
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      );
+  };
+
+  const renderSettingsView = () => {
+      if (!appConfig) return <div>Cargando configuración...</div>;
+      
+      return (
+          <div className="max-w-2xl mx-auto space-y-6">
+              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
+                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center"><Settings className="mr-2"/> Configuración General</h3>
+                  
+                  <div className="space-y-6">
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Imagen de Portada (Dashboard Estudiantes)</label>
+                          <div className="relative group cursor-pointer mb-2 overflow-hidden rounded-lg h-40 border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-colors bg-gray-50 flex items-center justify-center">
+                               {appConfig.heroImage ? (
+                                   <img src={appConfig.heroImage} alt="Hero" className="w-full h-full object-cover"/>
+                               ) : (
+                                   <div className="text-center text-gray-400">
+                                       <ImageIcon className="mx-auto mb-2" size={32}/>
+                                       <span className="text-sm">Clic para cambiar URL (Demo)</span>
+                                   </div>
+                               )}
+                               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <input 
+                                      type="text" 
+                                      value={appConfig.heroImage} 
+                                      onChange={(e) => setAppConfig({...appConfig, heroImage: e.target.value})}
+                                      className="w-3/4 p-2 rounded text-sm text-gray-800"
+                                      placeholder="https://..."
+                                   />
+                               </div>
+                          </div>
+                          <p className="text-xs text-gray-500">Pega una URL de imagen válida.</p>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Fondo de Pantalla de Login</label>
+                          <div className="flex gap-4 items-center">
+                              <div className="w-32 h-20 rounded border border-gray-200 overflow-hidden bg-gray-100 relative">
+                                  {appConfig.landingBackground && <img src={appConfig.landingBackground} className="w-full h-full object-cover"/>}
+                              </div>
+                              <div>
+                                  <input 
+                                     type="file" 
+                                     ref={settingsImageInputRef}
+                                     onChange={handleSettingsImageUpload}
+                                     accept="image/*"
+                                     className="hidden"
+                                  />
+                                  <button onClick={() => settingsImageInputRef.current?.click()} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center">
+                                      <Upload size={16} className="mr-2"/> Subir Nueva Imagen
+                                  </button>
+                                  <p className="text-xs text-gray-500 mt-1">Recomendado: 1920x1080px (JPG/PNG)</p>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Color Primario de la Marca</label>
+                          <div className="flex gap-4">
+                              {['blue', 'indigo', 'purple', 'green', 'red', 'orange', 'slate'].map(color => (
+                                  <button 
+                                      key={color}
+                                      onClick={() => setAppConfig({...appConfig, primaryColor: color})}
+                                      className={`w-8 h-8 rounded-full border-2 transition-all ${appConfig.primaryColor === color ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`}
+                                      style={{ backgroundColor: `var(--color-${color}-600, ${color})` }} // Simple simulation
+                                  ></button>
+                              ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">Selecciona el color base para botones y encabezados.</p>
+                      </div>
+
+                      <div className="pt-6 border-t border-gray-100">
+                          <button onClick={handleSaveConfig} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 flex justify-center items-center">
+                              <Save size={18} className="mr-2"/> Guardar Configuración
+                          </button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      );
   };
 
   return (
