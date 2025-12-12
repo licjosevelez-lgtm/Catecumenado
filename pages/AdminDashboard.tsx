@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, AppConfig } from '../types';
 import { SupabaseService as MockService } from '../services/supabase';
@@ -26,6 +25,10 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const settingsImageInputRef = useRef<HTMLInputElement>(null);
   
+  // File Upload State
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
   // Team Management State
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -60,6 +63,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   useEffect(() => {
     if (view === 'modules' && modules.length > 0 && !editingModule) {
       setEditingModule(modules[currentModuleIndex]);
+      setSelectedFile(null); // Reset file on module change
     }
   }, [view, modules, currentModuleIndex, editingModule]);
 
@@ -114,12 +118,33 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const handleSaveModule = async (moduleToSave: Module | null = editingModule) => {
     if (moduleToSave) {
       try {
-        await MockService.updateModule(moduleToSave);
+        setUploadingFile(true);
+        let updatedModule = { ...moduleToSave };
+
+        // 1. Upload File if selected
+        if (selectedFile) {
+           const publicUrl = await MockService.uploadFile(selectedFile);
+           const newResource = {
+             name: selectedFile.name,
+             url: publicUrl,
+             type: 'pdf' as const
+           };
+           updatedModule.resources = [...(updatedModule.resources || []), newResource];
+        }
+
+        // 2. Save Module Data
+        await MockService.updateModule(updatedModule);
+        
+        setSelectedFile(null); // Reset after save
+        if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input
+        
         loadData();
         alert('Cambios guardados correctamente.');
       } catch (error: any) {
         console.error(error);
         alert(`Error al guardar: ${error.message}. Verifica la consola para más detalles.`);
+      } finally {
+        setUploadingFile(false);
       }
     }
   };
@@ -341,19 +366,10 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       setEditingModule({ ...editingModule, topics: newTopics });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0] && editingModule) {
-          const file = e.target.files[0];
-          const newResource = {
-              name: file.name,
-              url: '#',
-              type: 'pdf' as const,
-              file: file
-          };
-          setEditingModule({
-              ...editingModule,
-              resources: [...(editingModule.resources || []), newResource]
-          });
+  // --- FILE SELECTION HANDLER ---
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          setSelectedFile(e.target.files[0]);
       }
   };
 
@@ -362,13 +378,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       const newRes = [...(editingModule.resources || [])];
       newRes.splice(index, 1);
       setEditingModule({...editingModule, resources: newRes});
-  };
-
-  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0] && editingModule) {
-          const url = URL.createObjectURL(e.target.files[0]);
-          setEditingModule({...editingModule, imageUrl: url});
-      }
   };
   
   const handleSettingsImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -626,10 +635,51 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
             <div className="flex items-center gap-2"><button onClick={handleNextModule} className="p-2 rounded-full hover:bg-gray-200 text-gray-600 mr-2"><ChevronRight size={24} /></button><button onClick={handleCreateNewModule} className="flex items-center gap-1 text-sm bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-200 font-medium"><Plus size={16} /> New</button></div>
         </div>
         <div className="p-8 space-y-8 overflow-y-auto flex-1" key={editingModule.id}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div><label className="block text-sm font-medium text-gray-700">Título</label><input type="text" value={editingModule.title} onChange={(e) => setEditingModule({...editingModule, title: e.target.value})} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2"/></div>
-            <div><label className="block text-sm font-medium text-gray-700">Orden</label><input type="number" value={editingModule.order} onChange={(e) => setEditingModule({...editingModule, order: parseInt(e.target.value)})} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2"/></div>
-            <div className="col-span-2"><label className="block text-sm font-bold text-gray-800">Objetivo</label><textarea value={editingModule.description} onChange={(e) => setEditingModule({...editingModule, description: e.target.value})} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-3 bg-gray-800 text-white" rows={2}/></div>
+          
+          {/* TOP SECTION: TITLE & UPLOAD (REPLACING ORDER) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="flex gap-4">
+               <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700">Título</label>
+                  <input type="text" value={editingModule.title} onChange={(e) => setEditingModule({...editingModule, title: e.target.value})} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2"/>
+               </div>
+               <div className="w-20">
+                  <label className="block text-sm font-medium text-gray-700">Orden</label>
+                  <input type="number" value={editingModule.order} onChange={(e) => setEditingModule({...editingModule, order: parseInt(e.target.value)})} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-2"/>
+               </div>
+            </div>
+            
+            {/* FILE UPLOAD SECTION */}
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3">
+               <label className="block text-xs font-bold text-indigo-800 mb-2 uppercase">Material de Estudio (PDF)</label>
+               <div className="flex items-center gap-2">
+                   <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept=".pdf"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"
+                   />
+               </div>
+               {selectedFile && (
+                   <div className="mt-2 text-xs text-indigo-700 flex items-center font-medium">
+                       <Upload size={12} className="mr-1"/> Listo para subir: {selectedFile.name}
+                   </div>
+               )}
+               {/* Show existing resources */}
+               {(editingModule.resources || []).length > 0 && (
+                   <div className="mt-2 space-y-1">
+                       {editingModule.resources?.map((res, idx) => (
+                           <div key={idx} className="flex justify-between items-center text-xs bg-white p-1 rounded border border-indigo-100">
+                               <span className="truncate flex-1 text-gray-600">{res.name}</span>
+                               <button onClick={() => handleRemoveResource(idx)} className="text-red-500 hover:text-red-700 ml-2"><X size={12}/></button>
+                           </div>
+                       ))}
+                   </div>
+               )}
+            </div>
+            
+            <div className="col-span-1 md:col-span-2"><label className="block text-sm font-bold text-gray-800">Objetivo</label><textarea value={editingModule.description} onChange={(e) => setEditingModule({...editingModule, description: e.target.value})} className="mt-1 block w-full border-gray-300 rounded-md shadow-sm border p-3 bg-gray-800 text-white" rows={2}/></div>
           </div>
 
           <div>
@@ -656,7 +706,19 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                 ))}
             </div>
           </div>
-          <div className="flex justify-end pt-6"><button onClick={() => handleSaveModule(editingModule)} className="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 flex items-center font-bold sticky bottom-0"><Save className="mr-2" /> Guardar Contenido</button></div>
+          <div className="flex justify-end pt-6">
+            <button 
+                onClick={() => handleSaveModule(editingModule)} 
+                disabled={uploadingFile}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 flex items-center font-bold sticky bottom-0 disabled:opacity-70"
+            >
+                {uploadingFile ? (
+                    <>Subiendo archivo...</>
+                ) : (
+                    <><Save className="mr-2" /> Guardar Contenido</>
+                )}
+            </button>
+          </div>
         </div>
       </div>
     );
