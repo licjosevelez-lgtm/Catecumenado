@@ -4,7 +4,7 @@ import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, App
 import { SupabaseService as MockService } from '../services/supabase';
 import { GeminiService } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -265,6 +265,26 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     } finally {
       setSendingBroadcast(false);
     }
+  };
+  
+  const handleDeleteBroadcast = async (id: string) => {
+      if(window.confirm("¿Seguro que deseas eliminar este comunicado del historial? Esto no borrará las notificaciones ya recibidas por los usuarios, solo limpiará tu vista.")) {
+          try {
+              await MockService.deleteBroadcast(id);
+              loadData();
+          } catch(e: any) {
+              alert(e.message);
+          }
+      }
+  };
+
+  const handleLoadBroadcastToForm = (b: Broadcast) => {
+      setBroadcastTitle(b.title);
+      setBroadcastBody(b.body);
+      setBroadcastImportance(b.importance);
+      // Scroll to top or give feedback
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      alert("Datos cargados en el formulario. Puedes editarlos o reenviar el mensaje ahora.");
   };
 
   const handleDayClick = (day: number) => {
@@ -776,7 +796,30 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
           <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Megaphone className="mr-2 text-gray-600" size={20}/> Historial de Comunicados</h3></div>
           <div className="overflow-y-auto p-0 flex-1">
             {broadcastHistory.length === 0 ? (<div className="p-10 text-center text-gray-400">No hay comunicados.</div>) : (
-              <div className="divide-y divide-gray-100">{broadcastHistory.map((b) => (<div key={b.id} className="p-6 hover:bg-gray-50"><div className="flex justify-between items-start mb-2"><h4 className="font-bold text-gray-900">{b.title}</h4>{b.importance === 'high' && <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">URGENTE</span>}</div><p className="text-gray-600 mb-3 whitespace-pre-wrap">{b.body}</p><div className="text-xs text-gray-400">Enviado: {new Date(b.sentAt).toLocaleString()}</div></div>))}</div>
+              <div className="divide-y divide-gray-100">
+                  {broadcastHistory.map((b) => (
+                      <div key={b.id} className="p-6 hover:bg-gray-50 group relative">
+                          <div className="flex justify-between items-start mb-2">
+                              <h4 className="font-bold text-gray-900">{b.title}</h4>
+                              <div className="flex gap-2">
+                                  {b.importance === 'high' && <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">URGENTE</span>}
+                              </div>
+                          </div>
+                          <p className="text-gray-600 mb-3 whitespace-pre-wrap">{b.body}</p>
+                          <div className="text-xs text-gray-400 flex justify-between items-center">
+                              <span>Enviado: {new Date(b.sentAt).toLocaleString()}</span>
+                              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button onClick={() => handleLoadBroadcastToForm(b)} className="text-blue-600 hover:bg-blue-50 p-1 rounded" title="Reenviar / Cargar Datos">
+                                      <RefreshCw size={16}/>
+                                  </button>
+                                  <button onClick={() => handleDeleteBroadcast(b.id)} className="text-red-600 hover:bg-red-50 p-1 rounded" title="Eliminar del Historial">
+                                      <Trash2 size={16}/>
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+              </div>
             )}
           </div>
         </div>
