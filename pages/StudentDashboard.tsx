@@ -319,8 +319,17 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             onCancel={() => setTakingQuiz(false)}
             onComplete={(passed) => {
                 setTakingQuiz(false);
-                if (passed) setActiveModule(null);
-                window.location.reload(); 
+                if (passed) {
+                   setActiveModule(null);
+                   // ACTUALIZAR ESTADO LOCAL SIN RECARGAR LA PÁGINA
+                   const updatedModules = [...(user.completedModules || [])];
+                   if (!updatedModules.includes(activeModule.id)) {
+                      updatedModules.push(activeModule.id);
+                   }
+                   const updatedUser = { ...user, completedModules: updatedModules };
+                   if (onUserUpdate) onUserUpdate(updatedUser);
+                   alert("¡Felicidades! Has aprobado el módulo.");
+                }
             }}
             />
         );
