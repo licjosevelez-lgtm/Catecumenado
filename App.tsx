@@ -1,29 +1,24 @@
-
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from './types';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
-// IMPORTANTE: Cambiamos a SupabaseService para todo el flujo
 import { SupabaseService as MockService } from './services/supabase';
 
 function App() {
-  // Estado inicial null para forzar login con Supabase
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false); // Cambiado a false ya que no hay chequeo de sesión persistente complejo
+  const [loading, setLoading] = useState(false);
   const [adminView, setAdminView] = useState('dashboard');
   const [studentView, setStudentView] = useState('dashboard');
 
   useEffect(() => {
-    // Aquí podrías implementar la recuperación de sesión de Supabase si quisieras
-    // const session = MockService.getSession();
     setLoading(false);
   }, []);
 
   const handleLogin = (u: User) => {
     setUser(u);
-    setStudentView('dashboard'); // Reset student view on login
+    setStudentView('dashboard');
     setAdminView('dashboard');
   };
 
@@ -33,7 +28,6 @@ function App() {
     setStudentView('dashboard');
   };
   
-  // New handler to refresh user data from sub-components
   const handleUserUpdate = (updatedUser: User) => {
     setUser(updatedUser);
   };
