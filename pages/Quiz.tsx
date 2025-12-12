@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Module, Question, QuizAttempt } from '../types';
-import { MockService } from '../services/mockDb';
+// CORRECCIÓN: Usar SupabaseService
+import { SupabaseService as MockService } from '../services/supabase';
 import { AlertCircle, CheckCircle, Clock, Lock } from 'lucide-react';
 
 interface QuizProps {
@@ -21,6 +22,8 @@ export const Quiz: React.FC<QuizProps> = ({ module, userId, onComplete, onCancel
   // 1. Check for existing locks on mount
   useEffect(() => {
     const checkStatus = async () => {
+      // Nota: getAttempts es un stub en SupabaseService por ahora, 
+      // así que no bloqueará realmente, pero preparará el código.
       const attempts = MockService.getAttempts(userId);
       const moduleAttempts = attempts.filter(a => a.moduleId === module.id).sort((a, b) => b.timestamp - a.timestamp);
       
@@ -56,6 +59,7 @@ export const Quiz: React.FC<QuizProps> = ({ module, userId, onComplete, onCancel
     setScore(calculatedScore);
     setSubmitted(true);
 
+    // Esto ahora llama a SupabaseService.submitQuiz
     const result = await MockService.submitQuiz(userId, module.id, calculatedScore);
     
     if (!result.passed && result.lockedUntil) {
