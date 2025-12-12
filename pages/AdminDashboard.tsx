@@ -5,7 +5,7 @@ import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, App
 import { SupabaseService as MockService } from '../services/supabase';
 import { GeminiService } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -38,12 +38,14 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   // Lifted state for Carousel Navigation
   const [currentModuleIndex, setCurrentModuleIndex] = useState(0);
 
-  // Broadcast State
+  // Broadcast & Welcome Message State
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastBody, setBroadcastBody] = useState('');
   const [broadcastImportance, setBroadcastImportance] = useState<'normal' | 'high'>('normal');
   const [broadcastHistory, setBroadcastHistory] = useState<Broadcast[]>([]);
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [savingWelcome, setSavingWelcome] = useState(false);
 
   // Calendar State
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -89,6 +91,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       if (view === 'notifications') {
         const history = await MockService.getBroadcastHistory();
         setBroadcastHistory(history || []);
+        const welcome = await MockService.getWelcomeMessage();
+        setWelcomeMessage(welcome);
       }
 
       if (view === 'calendar') {
@@ -157,6 +161,18 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
           await MockService.updateAppConfig(appConfig);
           loadData();
           alert('Configuración guardada. Recarga la página para ver cambios de fondo.');
+      }
+  };
+  
+  const handleSaveWelcomeMessage = async () => {
+      setSavingWelcome(true);
+      try {
+          await MockService.updateWelcomeMessage(welcomeMessage);
+          alert("Mensaje de bienvenida actualizado. Los próximos alumnos recibirán este mensaje.");
+      } catch (e: any) {
+          alert("Error: " + e.message);
+      } finally {
+          setSavingWelcome(false);
       }
   };
 
@@ -718,17 +734,47 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const renderNotificationsView = () => {
     return (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-fit">
-          <div className="mb-6 pb-4 border-b border-gray-100"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Send className="mr-2 text-indigo-600" size={20}/> Redactar Aviso</h3></div>
-          <form onSubmit={handleSendBroadcast} className="space-y-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Título</label><input type="text" value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5" required/></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Mensaje</label><textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none" required/></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Importancia</label><div className="flex gap-4"><label className="flex items-center"><input type="radio" name="importance" value="normal" checked={broadcastImportance === 'normal'} onChange={() => setBroadcastImportance('normal')} className="mr-2"/>Normal</label><label className="flex items-center"><input type="radio" name="importance" value="high" checked={broadcastImportance === 'high'} onChange={() => setBroadcastImportance('high')} className="mr-2 text-red-600"/>Alta</label></div></div>
-            <button type="submit" disabled={sendingBroadcast} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow hover:bg-indigo-700 disabled:opacity-70 mt-4">{sendingBroadcast ? 'Enviando...' : 'Enviar a Todos'}</button>
-          </form>
+        <div className="lg:col-span-1 space-y-8 flex flex-col h-fit">
+            
+            {/* 1. SECCIÓN: REDACTAR AVISO */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                <div className="mb-6 pb-4 border-b border-gray-100"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Send className="mr-2 text-indigo-600" size={20}/> Redactar Aviso</h3></div>
+                <form onSubmit={handleSendBroadcast} className="space-y-4">
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Título</label><input type="text" value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5" required/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Mensaje</label><textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none" required/></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Importancia</label><div className="flex gap-4"><label className="flex items-center"><input type="radio" name="importance" value="normal" checked={broadcastImportance === 'normal'} onChange={() => setBroadcastImportance('normal')} className="mr-2"/>Normal</label><label className="flex items-center"><input type="radio" name="importance" value="high" checked={broadcastImportance === 'high'} onChange={() => setBroadcastImportance('high')} className="mr-2 text-red-600"/>Alta</label></div></div>
+                    <button type="submit" disabled={sendingBroadcast} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow hover:bg-indigo-700 disabled:opacity-70 mt-4">{sendingBroadcast ? 'Enviando...' : 'Enviar a Todos'}</button>
+                </form>
+            </div>
+
+            {/* 2. SECCIÓN: CONFIGURACIÓN BIENVENIDA AUTOMÁTICA */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col">
+                <div className="mb-4 pb-2 border-b border-gray-100">
+                    <h3 className="text-md font-bold text-gray-800 flex items-center">
+                        <MessageSquare className="mr-2 text-green-600" size={18}/> Mensaje de Bienvenida Automático
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">Este mensaje se envía automáticamente al registrarse un alumno nuevo.</p>
+                </div>
+                <textarea 
+                    value={welcomeMessage} 
+                    onChange={e => setWelcomeMessage(e.target.value)} 
+                    className="w-full border border-gray-300 rounded-lg p-3 h-28 resize-none text-sm mb-4 focus:ring-2 focus:ring-green-500 focus:border-green-500" 
+                    placeholder="Escribe el mensaje de bienvenida..."
+                />
+                <button 
+                    onClick={handleSaveWelcomeMessage}
+                    disabled={savingWelcome}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg font-bold shadow hover:bg-green-700 disabled:opacity-70 text-sm flex justify-center items-center"
+                >
+                    {savingWelcome ? 'Guardando...' : 'Guardar Mensaje'}
+                </button>
+            </div>
+
         </div>
+
+        {/* 3. SECCIÓN: HISTORIAL DE AVISOS */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-          <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Megaphone className="mr-2 text-gray-600" size={20}/> Historial</h3></div>
+          <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Megaphone className="mr-2 text-gray-600" size={20}/> Historial de Comunicados</h3></div>
           <div className="overflow-y-auto p-0 flex-1">
             {broadcastHistory.length === 0 ? (<div className="p-10 text-center text-gray-400">No hay comunicados.</div>) : (
               <div className="divide-y divide-gray-100">{broadcastHistory.map((b) => (<div key={b.id} className="p-6 hover:bg-gray-50"><div className="flex justify-between items-start mb-2"><h4 className="font-bold text-gray-900">{b.title}</h4>{b.importance === 'high' && <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">URGENTE</span>}</div><p className="text-gray-600 mb-3 whitespace-pre-wrap">{b.body}</p><div className="text-xs text-gray-400">Enviado: {new Date(b.sentAt).toLocaleString()}</div></div>))}</div>
