@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, AppConfig } from '../types';
 import { SupabaseService as MockService } from '../services/supabase';
@@ -103,14 +104,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     }
   };
 
-  // --- HELPERS ---
-  const normalizeYoutube = (index: number, url: string) => {
-    // Basic logic to ensure URL is saved. 
-    // In a full implementation, this would extract ID `v=` and convert to embed format.
-    // For now, we ensure the state is updated correctly via the existing handler.
-    handleTopicChange(index, 'videoUrl', url);
-  };
-
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
       await MockService.deleteUser(userId);
@@ -120,9 +113,14 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
 
   const handleSaveModule = async (moduleToSave: Module | null = editingModule) => {
     if (moduleToSave) {
-      await MockService.updateModule(moduleToSave);
-      loadData();
-      alert('Cambios guardados correctamente.');
+      try {
+        await MockService.updateModule(moduleToSave);
+        loadData();
+        alert('Cambios guardados correctamente.');
+      } catch (error: any) {
+        console.error(error);
+        alert(`Error al guardar: ${error.message}. Verifica la consola para más detalles.`);
+      }
     }
   };
 
@@ -301,13 +299,18 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         resources: []
     };
     
-    await MockService.updateModule(newModule);
-    const updatedModules = await MockService.getModules();
-    setModules(updatedModules);
-    
-    const newIndex = updatedModules.length - 1;
-    setCurrentModuleIndex(newIndex);
-    setEditingModule(updatedModules[newIndex]);
+    // Con upsert en el servicio, esto funcionará aunque el ID sea nuevo
+    try {
+        await MockService.updateModule(newModule);
+        const updatedModules = await MockService.getModules();
+        setModules(updatedModules);
+        
+        const newIndex = updatedModules.length - 1;
+        setCurrentModuleIndex(newIndex);
+        setEditingModule(updatedModules[newIndex]);
+    } catch (e: any) {
+        alert('Error creando módulo: ' + e.message);
+    }
   };
 
   const handleAddTopic = () => {
@@ -643,7 +646,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                                     type="text" 
                                     value={topic.videoUrl}
                                     onChange={(e) => handleTopicChange(index, 'videoUrl', e.target.value)}
-                                    onBlur={(e) => normalizeYoutube(index, e.target.value)}
                                     className="w-full bg-gray-50 border border-gray-300 rounded p-2 text-sm text-gray-600"
                                     placeholder="https://youtube.com/..."
                                 />
