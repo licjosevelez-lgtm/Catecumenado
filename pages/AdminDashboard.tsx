@@ -603,13 +603,37 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         </div>
         <div className="p-4 overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th><th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Progreso</th><th className="px-6 py-3"></th></tr></thead>
-                <tbody>
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Email</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Edad</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado Civil</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Sacramentos</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Whatsapp</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Progreso</th>
+                    <th className="px-6 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
                     {students.map(s => (
                         <tr key={s.id}>
-                            <td className="px-6 py-4">{s.name}</td>
-                            <td className="px-6 py-4">{(s.completedModules || []).length} Módulos</td>
-                            <td className="px-6 py-4 text-right"><button onClick={() => handleDeleteUser(s.id)} className="text-red-600"><Trash2 size={16}/></button></td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{s.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.email}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.age || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.maritalStatus || 'N/A'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              <div className="flex flex-wrap gap-1">
+                                {(s.sacramentTypes || []).map(sac => (
+                                  <span key={sac} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    {sac}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{s.phone || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(s.completedModules || []).length} Módulos</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button onClick={() => handleDeleteUser(s.id)} className="text-red-600 hover:text-red-900"><Trash2 size={16}/></button></td>
                         </tr>
                     ))}
                 </tbody>
