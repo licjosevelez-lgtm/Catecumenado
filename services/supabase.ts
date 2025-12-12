@@ -11,6 +11,31 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Clase de servicio compatible con tu código anterior
 export class SupabaseService {
 
+  // --- STORAGE (NUEVO) ---
+  static async uploadFile(file: File): Promise<string> {
+    // 1. Crear nombre único para evitar colisiones
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // 2. Subir al bucket 'module-files'
+    const { data, error } = await supabase.storage
+      .from('module-files')
+      .upload(filePath, file);
+
+    if (error) {
+      console.error("Error subiendo archivo:", error);
+      throw new Error("No se pudo subir el archivo. Verifica que el bucket 'module-files' exista y sea público.");
+    }
+
+    // 3. Obtener URL pública
+    const { data: publicUrlData } = supabase.storage
+      .from('module-files')
+      .getPublicUrl(filePath);
+
+    return publicUrlData.publicUrl;
+  }
+
   // --- AUTENTICACIÓN ---
   static async loginStudent(email: string, passwordInput: string) {
     // 1. Buscamos el usuario por correo
