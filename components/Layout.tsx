@@ -21,9 +21,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
 
   useEffect(() => {
     if (user) {
-      // SupabaseService.getNotifications devuelve array vacío por ahora para evitar errores
-      const notifs = MockService.getNotifications(user.id);
-      setNotifications(notifs);
+      // SupabaseService.getNotifications devuelve Promise<Notification[]>
+      const loadNotifs = async () => {
+        const notifs = await MockService.getNotifications(user.id);
+        setNotifications(notifs);
+      };
+      loadNotifs();
     }
   }, [user]);
 
