@@ -173,7 +173,6 @@ export class SupabaseService {
     const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
     
     // Si el ID es temporal (creado con Date.now()), dejamos que el upsert maneje la creación
-    // Nota: Para producción idealmente usaríamos UUIDs generados por la DB, pero esto mantiene compatibilidad
     const { error } = await supabase
       .from('modules')
       .upsert({
@@ -297,7 +296,7 @@ export class SupabaseService {
 
   static async sendBroadcast(title: string, body: string, importance: string) {
       // 1. Obtener todos los alumnos
-      const students = await this.getAllUsers(); // Filtra estudiantes internamente si es necesario, pero aquí trae todos
+      const students = await this.getAllUsers(); 
       const targetUsers = students.filter(u => u.role === 'STUDENT');
 
       // 2. Guardar en Historial (Broadcasts)
