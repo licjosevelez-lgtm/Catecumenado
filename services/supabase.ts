@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
@@ -116,6 +117,7 @@ export class SupabaseService {
         sacraments: userData.sacramentTypes || [],
         phone: userData.phone,
         address: userData.address,
+        birth_place: userData.birthPlace, // Aseguramos que se guarde el lugar de nacimiento
         completed_modules: []
       }])
       .select()
@@ -145,6 +147,7 @@ export class SupabaseService {
         address: user.address,
         sacraments: user.sacramentTypes,
         marital_status: user.maritalStatus,
+        birth_place: user.birthPlace,
         completed_modules: user.completedModules
       })
       .eq('id', user.id)
@@ -348,16 +351,32 @@ export class SupabaseService {
   }
 
   static async addEvent(event: CalendarEvent): Promise<void> {
+      // Limpiamos el objeto para asegurar que coincida EXACTAMENTE con la tabla
+      // y no enviamos referencias u objetos anidados.
+      const payload = {
+        id: event.id,
+        date: event.date,
+        location: event.location,
+        time: event.time,
+        duration: event.duration,
+        cost: event.cost
+      };
+
       const { error } = await supabase
         .from('calendar_events')
-        .insert([event]);
+        .insert([payload]);
         
-      if (error) throw new Error("Error guardando evento: " + error.message);
+      if (error) {
+        // Mensaje de error detallado para el usuario
+        if (error.message.includes("schema cache") || error.message.includes("Could not find")) {
+           throw new Error("⚠️ ERROR CRÍTICO DE BASE DE DATOS: La estructura de la tabla no coincide. Por favor, ejecuta el Script SQL 'REPARACIÓN NUCLEAR' en Supabase para limpiar la caché.");
+        }
+        throw new Error("Error guardando evento: " + error.message);
+      }
   }
 
   // --- QUIZ LOGIC ---
   static getAttempts(userId: string): QuizAttempt[] { 
-    // Implementación futura si se guarda historial detallado
     return []; 
   } 
 
@@ -383,18 +402,18 @@ export class SupabaseService {
   }
 
   private static mapUser(dbUser: any): User {
+    // Mapeo defensivo para asegurar que no falle si falta una columna en DB antigua
     return {
       id: dbUser.id,
       name: dbUser.name,
       email: dbUser.email,
       role: dbUser.role as UserRole,
-      // Manejo seguro de opcionales
       age: dbUser.age,
-      maritalStatus: dbUser.marital_status,
-      birthPlace: dbUser.birth_place,
+      maritalStatus: dbUser.marital_status, // Mapeo snake_case a camelCase
+      birthPlace: dbUser.birth_place,       // Mapeo snake_case a camelCase
       phone: dbUser.phone,
       address: dbUser.address,
-      sacramentTypes: dbUser.sacraments || [],
+      sacramentTypes: dbUser.sacraments || [], // Mapeo de nombre de columna
       completedModules: dbUser.completed_modules || [],
       isSuperAdmin: dbUser.is_super_admin
     };
