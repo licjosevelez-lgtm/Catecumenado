@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
@@ -366,6 +367,11 @@ export class SupabaseService {
           const { error: notifError } = await supabase.from('notifications').insert(notifications);
           if (notifError) console.error("Error enviando notificaciones individuales", notifError);
       }
+  }
+
+  static async deleteBroadcast(id: string): Promise<void> {
+      const { error } = await supabase.from('broadcasts').delete().eq('id', id);
+      if (error) throw new Error("Error al eliminar comunicado: " + error.message);
   }
 
   // --- CALENDARIO ---
