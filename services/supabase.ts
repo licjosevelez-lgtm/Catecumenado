@@ -237,6 +237,11 @@ export class SupabaseService {
     if (error) throw new Error(error.message);
   }
 
+  static async deleteModule(id: string): Promise<void> {
+    const { error } = await supabase.from('modules').delete().eq('id', id);
+    if (error) throw new Error("Error al eliminar módulo: " + error.message);
+  }
+
   // --- CONFIGURACIÓN ---
   static async getAppConfig(): Promise<AppConfig> {
     const { data, error } = await supabase
