@@ -1,7 +1,9 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, AppConfig } from '../types';
 import { SupabaseService as MockService } from '../services/supabase';
+import { GeminiService } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -76,7 +78,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       const loadedModules = await MockService.getModules();
       setModules(loadedModules || []);
       
-      setAppConfig(MockService.getAppConfig());
+      const config = await MockService.getAppConfig();
+      setAppConfig(config);
       
       if (view === 'team') {
           const loadedAdmins = await MockService.getAdminList();
@@ -142,7 +145,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         alert('Cambios guardados correctamente.');
       } catch (error: any) {
         console.error(error);
-        alert(`Error al guardar: ${error.message}. Verifica la consola para más detalles.`);
+        alert(`Error al guardar: ${error.message}`);
       } finally {
         setUploadingFile(false);
       }
@@ -209,7 +212,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     doc.save(`Directorio_Catecumenos_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // --- TEAM/BROADCAST/CALENDAR HANDLERS (SAME AS BEFORE) ---
+  // --- TEAM/BROADCAST/CALENDAR HANDLERS ---
   const handleInviteAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName || !inviteEmail) return;
@@ -267,7 +270,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       return;
     }
     const newEvent: CalendarEvent = {
-      id: Date.now().toString(),
+      id: Date.now().toString(), // Upsert en Supabase usa ID
       date: selectedDate,
       location: evtLocation,
       time: evtTime,
@@ -368,13 +371,229 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       }
   };
 
+  // --- QUIZ MANAGEMENT LOGIC ---
+  const handleGenerateQuestions = async () => {
+    if (!editingQuizModule) return;
+    const topic = editingQuizModule.topics[0]?.title || editingQuizModule.title;
+    if (!topic) {
+        alert("El módulo necesita un título o temas para generar preguntas.");
+        return;
+    }
+    
+    setLoading(true);
+    try {
+        const newQuestions = await GeminiService.generateQuizQuestions(topic, 3);
+        const updatedModule = { 
+            ...editingQuizModule, 
+            questions: [...editingQuizModule.questions, ...newQuestions] 
+        };
+        setEditingQuizModule(updatedModule);
+    } catch (e: any) {
+        alert("Error IA: " + e.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const handleAddQuestion = () => {
+    if (!editingQuizModule) return;
+    const newQ: Question = {
+        id: Date.now().toString(),
+        text: 'Nueva Pregunta',
+        options: ['Opción A', 'Opción B', 'Opción C', 'Opción D'],
+        correctIndex: 0
+    };
+    setEditingQuizModule({ ...editingQuizModule, questions: [...editingQuizModule.questions, newQ] });
+  };
+
+  const handleRemoveQuestion = (index: number) => {
+      if (!editingQuizModule) return;
+      const newQs = [...editingQuizModule.questions];
+      newQs.splice(index, 1);
+      setEditingQuizModule({ ...editingQuizModule, questions: newQs });
+  };
+
+  const handleQuestionChange = (index: number, field: keyof Question, value: any) => {
+      if (!editingQuizModule) return;
+      const newQs = [...editingQuizModule.questions];
+      newQs[index] = { ...newQs[index], [field]: value };
+      setEditingQuizModule({ ...editingQuizModule, questions: newQs });
+  };
+
+  const handleQuestionOptionChange = (qIndex: number, optIndex: number, value: string) => {
+      if (!editingQuizModule) return;
+      const newQs = [...editingQuizModule.questions];
+      const newOpts = [...newQs[qIndex].options];
+      newOpts[optIndex] = value;
+      newQs[qIndex] = { ...newQs[qIndex], options: newOpts };
+      setEditingQuizModule({ ...editingQuizModule, questions: newQs });
+  };
+
+  const renderExamsView = () => {
+    return (
+        <div className="space-y-6">
+             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                 <h3 className="font-bold text-gray-800 mb-4">Selecciona un Módulo para gestionar su examen</h3>
+                 <div className="flex gap-4 overflow-x-auto pb-2">
+                     {modules.map(m => (
+                         <button 
+                            key={m.id} 
+                            onClick={() => setEditingQuizModule(m)}
+                            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${editingQuizModule?.id === m.id ? 'bg-indigo-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                         >
+                             {m.order}. {m.title}
+                         </button>
+                     ))}
+                 </div>
+             </div>
+
+             {editingQuizModule && (
+                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                     <div className="flex justify-between items-center mb-6">
+                         <h3 className="font-bold text-lg text-gray-800">Preguntas: {editingQuizModule.title}</h3>
+                         <div className="flex gap-2">
+                            <button 
+                                onClick={handleGenerateQuestions}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 font-medium"
+                            >
+                                <RotateCcw size={18} /> Generar con IA
+                            </button>
+                            <button 
+                                onClick={handleAddQuestion}
+                                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-medium"
+                            >
+                                <Plus size={18} /> Agregar Manual
+                            </button>
+                         </div>
+                     </div>
+
+                     <div className="space-y-6">
+                         {editingQuizModule.questions.length === 0 && (
+                             <div className="text-center text-gray-400 py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                                 No hay preguntas configuradas. Usa la IA o agrega una manualmente.
+                             </div>
+                         )}
+                         
+                         {editingQuizModule.questions.map((q, idx) => (
+                             <div key={q.id || idx} className="bg-gray-50 p-4 rounded-lg border border-gray-200 relative group">
+                                 <button onClick={() => handleRemoveQuestion(idx)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500"><Trash2 size={16}/></button>
+                                 <div className="mb-3">
+                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pregunta {idx + 1}</label>
+                                     <input 
+                                        type="text" 
+                                        value={q.text} 
+                                        onChange={(e) => handleQuestionChange(idx, 'text', e.target.value)}
+                                        className="w-full border-gray-300 rounded p-2 text-sm font-medium"
+                                     />
+                                 </div>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                     {q.options.map((opt, optIdx) => (
+                                         <div key={optIdx} className="flex items-center gap-2">
+                                             <input 
+                                                type="radio" 
+                                                name={`correct-${q.id}`} 
+                                                checked={q.correctIndex === optIdx} 
+                                                onChange={() => handleQuestionChange(idx, 'correctIndex', optIdx)}
+                                                className="text-indigo-600 focus:ring-indigo-500"
+                                             />
+                                             <input 
+                                                type="text" 
+                                                value={opt} 
+                                                onChange={(e) => handleQuestionOptionChange(idx, optIdx, e.target.value)}
+                                                className={`flex-1 border-gray-300 rounded p-1.5 text-sm ${q.correctIndex === optIdx ? 'bg-green-50 border-green-200 text-green-800' : ''}`}
+                                             />
+                                         </div>
+                                     ))}
+                                 </div>
+                             </div>
+                         ))}
+                     </div>
+
+                     <div className="mt-6 flex justify-end">
+                         <button 
+                            onClick={() => handleSaveModule(editingQuizModule)}
+                            className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-green-700 flex items-center"
+                         >
+                             <Save className="mr-2" size={18}/> Guardar Examen
+                         </button>
+                     </div>
+                 </div>
+             )}
+        </div>
+    );
+  };
+
   if (loading) return <div className="flex h-screen items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
 
-  const renderStatsView = () => { /* ... same as before ... */ 
-    return <div>Vista de Estadísticas (Implementación previa)</div> 
+  const renderStatsView = () => {
+    const students = users.filter(u => u.role !== 'ADMIN');
+    // Stats calculation based on students data
+    const totalCompletions = students.reduce((acc, s) => acc + (s.completedModules || []).length, 0);
+    const readyForInPerson = students.filter(s => modules.length > 0 && (s.completedModules || []).length === modules.length).length;
+
+    const completionStats = modules.map(m => ({
+      name: `Módulo ${m.order}`,
+      completados: students.filter(s => (s.completedModules || []).includes(m.id)).length,
+      pendientes: students.length - students.filter(s => (s.completedModules || []).includes(m.id)).length
+    }));
+
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center text-indigo-600 mb-2">
+              <Users className="mr-2" /> <span className="font-bold">Total Catecúmenos</span>
+            </div>
+            <p className="text-4xl font-bold text-gray-800">{students.length}</p>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center text-green-600 mb-2">
+              <Activity className="mr-2" />
+            </div>
+            <p className="text-gray-500 text-sm font-medium uppercase">Retención Global</p>
+            <h3 className="text-3xl font-bold text-gray-800">
+              {students.length > 0 && modules.length > 0 ? Math.round((totalCompletions / (students.length * modules.length)) * 100) : 0}%
+            </h3>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center text-purple-600 mb-2">
+              <UserCheck className="mr-2" /> <span className="font-bold">Confirmados Presencial</span>
+            </div>
+            <p className="text-4xl font-bold text-gray-800">{readyForInPerson}</p>
+            <p className="text-xs text-gray-500 mt-1">Aprobados 100% online</p>
+          </div>
+
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center text-orange-500 mb-2">
+              <AlertTriangle className="mr-2" /> <span className="font-bold">Usuarios Estancados</span>
+            </div>
+            <p className="text-4xl font-bold text-gray-800">
+              {students.filter(s => (s.completedModules || []).length === 0).length}
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl shadow-sm">
+          <h3 className="text-lg font-bold text-gray-800 mb-6">Progreso Global de la Clase</h3>
+          <div className="overflow-x-auto w-full">
+            <BarChart width={800} height={300} data={completionStats}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="completados" fill="#4f46e5" name="Aprobados" />
+                <Bar dataKey="pendientes" fill="#e5e7eb" name="Pendientes" />
+            </BarChart>
+          </div>
+        </div>
+      </div>
+    );
   };
+  
   const renderUsersView = () => { 
-    // Simplified for brevity, same as previous
     const students = users.filter(u => u.role !== 'ADMIN');
     return (
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -400,14 +619,136 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     );
   };
   
-  const renderCalendarView = () => { /* ... same as before ... */ return <div>Vista Calendario</div> };
-  const renderNotificationsView = () => { /* ... same as before ... */ return <div>Vista Notificaciones</div> };
-  const renderTeamView = () => { /* ... same as before ... */ return <div>Vista Equipo</div> };
-  const renderSettingsView = () => { /* ... same as before ... */ return <div>Vista Configuración</div> };
+  const renderCalendarView = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    
+    const years = Array.from({ length: 11 }, (_, i) => year - 5 + i);
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const emptySlots = Array.from({ length: firstDay });
+    const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcomingEvents = calendarEvents
+        .filter(e => e.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                    <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><ChevronLeft /></button>
+                    <div className="flex gap-2 items-center">
+                        <select value={month} onChange={(e) => setCurrentDate(new Date(year, parseInt(e.target.value), 1))} className="bg-white border-gray-300 border text-gray-800 text-sm rounded-lg p-2.5 font-bold uppercase">{monthNames.map((m, idx) => (<option key={idx} value={idx}>{m}</option>))}</select>
+                        <select value={year} onChange={(e) => setCurrentDate(new Date(parseInt(e.target.value), month, 1))} className="bg-white border-gray-300 border text-gray-800 text-sm rounded-lg p-2.5 font-bold">{years.map(y => (<option key={y} value={y}>{y}</option>))}</select>
+                    </div>
+                    <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><ChevronRight /></button>
+                </div>
+                <div className="p-6">
+                    <div className="grid grid-cols-7 gap-2 text-center mb-4">{['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (<div key={d} className="text-xs font-bold text-gray-400 uppercase">{d}</div>))}</div>
+                    <div className="grid grid-cols-7 gap-2">
+                        {emptySlots.map((_, i) => <div key={`empty-${i}`}></div>)}
+                        {daysArray.map(day => {
+                            const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                            const hasEvent = calendarEvents.some(e => e.date === dateStr);
+                            const isSelected = selectedDate === dateStr;
+                            return (
+                                <button key={day} onClick={() => handleDayClick(day)} className={`h-14 rounded-lg flex flex-col items-center justify-center relative transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'hover:bg-gray-50 bg-white border border-gray-100'}`}>
+                                    <span className="font-semibold text-sm">{day}</span>
+                                    {hasEvent && (<span className={`w-2 h-2 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-green-500'}`}></span>)}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-fit">
+                <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="font-bold text-gray-800 flex items-center"><Calendar className="mr-2 text-indigo-600" size={20} /> Próximos Eventos</h3></div>
+                <div className="p-0">
+                    {upcomingEvents.length === 0 ? (<div className="p-6 text-center text-gray-400 text-sm">No hay eventos próximos.</div>) : (
+                        <div className="divide-y divide-gray-100">{upcomingEvents.map(evt => (<div key={evt.id} className="p-4 hover:bg-gray-50"><div className="font-bold text-indigo-900">{evt.date}</div><div className="text-gray-800 font-medium">{evt.location}</div><div className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Clock size={14}/> {evt.time}</div></div>))}</div>
+                    )}
+                </div>
+            </div>
+            {showEventModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+                        <div className="bg-indigo-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold">Agendar Curso Presencial</h3><button onClick={() => setShowEventModal(false)}><X /></button></div>
+                        <div className="p-6 space-y-4">
+                            <div className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">Fecha: {selectedDate}</div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Lugar</label><div className="relative"><MapPin className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtLocation} onChange={e => setEvtLocation(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: Salón Parroquial"/></div></div>
+                            <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Horario</label><div className="relative"><Clock className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtTime} onChange={e => setEvtTime(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 10:00 AM"/></div></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Duración</label><input type="text" value={evtDuration} onChange={e => setEvtDuration(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 5 hrs"/></div></div>
+                            <div><label className="block text-sm font-medium text-gray-700 mb-1">Costo</label><div className="relative"><DollarSign className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtCost} onChange={e => setEvtCost(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: $50.00"/></div></div>
+                            <div className="flex gap-3 pt-4"><button onClick={() => handleSaveEvent(false)} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200">Guardar</button><button onClick={() => handleSaveEvent(true)} className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 flex justify-center items-center"><Megaphone size={16} className="mr-2"/> Guardar y Notificar</button></div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+  };
+  
+  const renderNotificationsView = () => {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-fit">
+          <div className="mb-6 pb-4 border-b border-gray-100"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Send className="mr-2 text-indigo-600" size={20}/> Redactar Aviso</h3></div>
+          <form onSubmit={handleSendBroadcast} className="space-y-4">
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Título</label><input type="text" value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5" required/></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Mensaje</label><textarea value={broadcastBody} onChange={e => setBroadcastBody(e.target.value)} className="w-full border border-gray-300 rounded-lg p-3 h-32 resize-none" required/></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Importancia</label><div className="flex gap-4"><label className="flex items-center"><input type="radio" name="importance" value="normal" checked={broadcastImportance === 'normal'} onChange={() => setBroadcastImportance('normal')} className="mr-2"/>Normal</label><label className="flex items-center"><input type="radio" name="importance" value="high" checked={broadcastImportance === 'high'} onChange={() => setBroadcastImportance('high')} className="mr-2 text-red-600"/>Alta</label></div></div>
+            <button type="submit" disabled={sendingBroadcast} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold shadow hover:bg-indigo-700 disabled:opacity-70 mt-4">{sendingBroadcast ? 'Enviando...' : 'Enviar a Todos'}</button>
+          </form>
+        </div>
+        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Megaphone className="mr-2 text-gray-600" size={20}/> Historial</h3></div>
+          <div className="overflow-y-auto p-0 flex-1">
+            {broadcastHistory.length === 0 ? (<div className="p-10 text-center text-gray-400">No hay comunicados.</div>) : (
+              <div className="divide-y divide-gray-100">{broadcastHistory.map((b) => (<div key={b.id} className="p-6 hover:bg-gray-50"><div className="flex justify-between items-start mb-2"><h4 className="font-bold text-gray-900">{b.title}</h4>{b.importance === 'high' && <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-bold">URGENTE</span>}</div><p className="text-gray-600 mb-3 whitespace-pre-wrap">{b.body}</p><div className="text-xs text-gray-400">Enviado: {new Date(b.sentAt).toLocaleString()}</div></div>))}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderTeamView = () => {
+      const isSuper = currentUser.isSuperAdmin;
+      return (
+          <div className="space-y-6">
+              {isSuper && (
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                      <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center"><Plus className="mr-2 text-indigo-600" size={20}/> Invitar Admin</h3>
+                      <form onSubmit={handleInviteAdmin} className="flex gap-4 items-end"><div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label><input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)} className="w-full border rounded p-2" required /></div><div className="flex-1"><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className="w-full border rounded p-2" required /></div><button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Invitar</button></form>
+                  </div>
+              )}
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100"><h3 className="font-bold text-gray-800">Equipo</h3></div>
+                  <table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>{isSuper && <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>}</tr></thead><tbody className="bg-white divide-y divide-gray-200">{admins.map(admin => (<tr key={admin.id}><td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{admin.name}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{admin.email}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{admin.isSuperAdmin ? 'Super Admin' : 'Catequista'}</td>{isSuper && (<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">{!admin.isSuperAdmin && (<button onClick={() => handleResetAdmin(admin.id)} className="text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1 rounded border border-indigo-100 flex items-center ml-auto"><RotateCcw size={14} className="mr-1"/> Reset</button>)}</td>)}</tr>))}</tbody></table>
+              </div>
+          </div>
+      );
+  };
+  
+  const renderSettingsView = () => {
+      if (!appConfig) return <div>Cargando...</div>;
+      return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
+              <div className="p-6 border-b border-gray-100"><h3 className="text-lg font-bold text-gray-800 flex items-center"><Settings className="mr-2 text-indigo-600" size={20}/> Configuración</h3></div>
+              <div className="p-8 space-y-8">
+                  <div><h4 className="font-bold text-gray-700 mb-4">Fondo Inicio</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-6"><div className="space-y-4"><div><label className="block text-sm font-medium text-gray-600 mb-1">URL</label><input type="text" value={appConfig.landingBackground} onChange={(e) => setAppConfig({...appConfig, landingBackground: e.target.value})} className="w-full border border-gray-300 rounded p-2 text-sm"/></div><div className="flex items-center gap-4"><input type="file" ref={settingsImageInputRef} className="hidden" onChange={handleSettingsImageUpload} accept="image/*"/><button onClick={() => settingsImageInputRef.current?.click()} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md font-medium text-sm hover:bg-gray-50 flex items-center shadow-sm w-full justify-center"><Upload size={16} className="mr-2"/> Subir</button></div></div><div className="border rounded-lg overflow-hidden h-48 bg-gray-100 relative group"><img src={appConfig.landingBackground} alt="Preview" className="w-full h-full object-cover" /></div></div></div>
+                  <div className="pt-6 border-t border-gray-100 flex justify-end"><button onClick={handleSaveConfig} className="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow hover:bg-indigo-700 flex items-center font-bold"><Save className="mr-2" /> Guardar</button></div>
+              </div>
+          </div>
+      );
+  };
 
   const renderModulesView = () => {
     if (modules.length === 0 && !editingModule) {
-         return (<div className="text-center p-12 bg-white rounded-xl shadow"><button onClick={handleCreateNewModule} className="bg-indigo-600 text-white px-4 py-2 rounded-lg">Crear Primer Módulo</button></div>)
+         return (<div className="text-center p-12 bg-white rounded-xl shadow"><p className="text-gray-500 mb-4">No hay módulos.</p><button onClick={handleCreateNewModule} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">Crear Primer Módulo</button></div>)
     }
     if (!editingModule) return <div className="p-8 text-center">Cargando editor...</div>;
 
@@ -420,16 +761,17 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         </div>
         <div className="p-8 space-y-8 overflow-y-auto flex-1" key={editingModule.id}>
           
-          {/* LAYOUT MODIFICADO: Título y Carga de Archivo en la fila superior */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+          {/* LAYOUT: Fila 1 = Título (Izquierda) + Archivo (Derecha/Top) */}
+          <div className="flex flex-col md:flex-row gap-6 items-start">
             
-            {/* Columna Izquierda: Título (ocupa 2 columnas) */}
-            <div className="md:col-span-2 space-y-4">
+            <div className="flex-1 space-y-4 w-full">
+               {/* Título */}
                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Título del Módulo</label>
                   <input type="text" value={editingModule.title} onChange={(e) => setEditingModule({...editingModule, title: e.target.value})} className="block w-full border-gray-300 rounded-md shadow-sm border p-2 focus:ring-indigo-500 focus:border-indigo-500"/>
                </div>
                
+               {/* Fila inferior: Orden + Objetivo */}
                <div className="flex gap-4">
                   <div className="w-24">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Orden</label>
@@ -442,8 +784,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                </div>
             </div>
             
-            {/* Columna Derecha: Carga de Archivo (DESTACADO, reemplazando visualmente al Orden antiguo) */}
-            <div className="md:col-span-1 bg-indigo-50 border border-indigo-100 rounded-lg p-4 h-full flex flex-col justify-center">
+            {/* Carga de Archivo: Ocupa el espacio visual "Importante" a la derecha arriba */}
+            <div className="w-full md:w-1/3 bg-indigo-50 border border-indigo-100 rounded-lg p-4 flex flex-col justify-center">
                <label className="block text-sm font-bold text-indigo-800 mb-2 flex items-center">
                    <FileText size={18} className="mr-2"/> Material PDF
                </label>
@@ -516,47 +858,6 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
           </div>
         </div>
       </div>
-    );
-  };
-
-  const renderExamsView = () => {
-    if (editingQuizModule) {
-        return (
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 max-w-4xl mx-auto flex flex-col min-h-[600px]">
-                 <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl">
-                    <button onClick={() => setEditingQuizModule(null)} className="flex items-center text-gray-600 hover:text-indigo-600"><ChevronLeft className="mr-1" /> Volver</button>
-                    <h3 className="font-bold text-gray-800 text-lg">Editando Cuestionario: {editingQuizModule.title}</h3>
-                    <div className="w-20"></div>
-                 </div>
-                 <div className="p-8 space-y-8 overflow-y-auto flex-1">
-                    {(editingQuizModule.questions || []).map((q, qIdx) => (
-                    <div key={q.id} className="mb-4 p-4 border rounded-lg bg-gray-50">
-                        <div className="flex justify-between mb-2"><label className="text-xs font-bold uppercase text-gray-500">Pregunta {qIdx + 1}</label><button onClick={() => { const newQs = [...editingQuizModule.questions]; newQs.splice(qIdx, 1); setEditingQuizModule({...editingQuizModule, questions: newQs}); }} className="text-red-500 text-xs hover:underline">Eliminar</button></div>
-                        <input className="w-full mb-3 p-2 border rounded" value={q.text} onChange={(e) => { const newQs = [...editingQuizModule.questions]; newQs[qIdx].text = e.target.value; setEditingQuizModule({...editingQuizModule, questions: newQs}); }}/>
-                        <div className="space-y-2 pl-4">{(q.options || []).map((opt, oIdx) => (<div key={oIdx} className="flex items-center"><input type="radio" checked={q.correctIndex === oIdx} onChange={() => { const newQs = [...editingQuizModule.questions]; newQs[qIdx].correctIndex = oIdx; setEditingQuizModule({...editingQuizModule, questions: newQs}); }} className="mr-2"/><input className="flex-1 p-1 border rounded text-sm" value={opt} onChange={(e) => { const newQs = [...editingQuizModule.questions]; newQs[qIdx].options[oIdx] = e.target.value; setEditingQuizModule({...editingQuizModule, questions: newQs}); }}/></div>))}</div>
-                    </div>
-                    ))}
-                    <button onClick={() => setEditingQuizModule({ ...editingQuizModule, questions: [...(editingQuizModule.questions || []), { id: Math.random().toString(), text: '', options: ['', '', '', ''], correctIndex: 0 }]})} className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-indigo-500 hover:text-indigo-600 transition-colors flex justify-center items-center"><Plus size={16} className="mr-1" /> Nueva Pregunta</button>
-                    <div className="flex justify-end pt-6 border-t"><button onClick={() => handleSaveModule(editingQuizModule)} className="bg-green-600 text-white px-6 py-3 rounded-lg shadow hover:bg-green-700 flex items-center font-bold"><Save className="mr-2" /> Guardar Cuestionario</button></div>
-                 </div>
-            </div>
-        )
-    }
-    return (
-        <div className="space-y-6">
-            <div className="bg-white p-6 rounded-xl border border-gray-100 mb-6"><h2 className="text-xl font-bold text-gray-800 mb-2">Exámenes</h2><p className="text-gray-500">Gestión de cuestionarios.</p></div>
-            <div className="space-y-4">
-                {modules.map((mod) => {
-                    const hasExam = mod.questions && mod.questions.length > 0;
-                    return (
-                        <div key={mod.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1"><div className="flex items-center gap-3 mb-2"><span className="text-xs font-bold uppercase text-indigo-600 tracking-wider">Módulo {mod.order}</span>{hasExam ? (<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200"><CheckCircle size={12} className="mr-1"/> {mod.questions.length} Preguntas</span>) : (<span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200"><AlertTriangle size={12} className="mr-1"/> Sin Examen</span>)}</div><h3 className="text-lg font-bold text-gray-900">{mod.title}</h3></div>
-                            <button onClick={() => setEditingQuizModule(mod)} className={`px-4 py-2 rounded-lg font-medium border flex items-center justify-center transition-colors whitespace-nowrap ${hasExam ? 'border-indigo-600 text-indigo-600 hover:bg-indigo-50' : 'bg-indigo-600 text-white hover:bg-indigo-700 border-transparent'}`}><HelpCircle size={18} className="mr-2" /> {hasExam ? 'Editar' : 'Crear'}</button>
-                        </div>
-                    )
-                })}
-            </div>
-        </div>
     );
   };
 
