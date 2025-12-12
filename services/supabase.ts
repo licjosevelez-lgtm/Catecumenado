@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module } from '../types';
 
@@ -24,7 +25,6 @@ export class SupabaseService {
     if (error || !data) return null;
 
     // 2. Verificamos la contraseña (simple)
-    // Note: The provided code assumes password is stored as plain text or provided input matches stored
     if (data.password !== passwordInput) return null;
 
     return this.mapUser(data);
@@ -115,15 +115,17 @@ export class SupabaseService {
   }
 
   static async updateModule(updatedModule: Module) {
-    console.log("🛠️ DEBUG: Intentando actualizar módulo ID:", updatedModule.id);
-    console.log("📦 DEBUG: Payload:", updatedModule);
+    console.log("🛠️ DEBUG: Guardando módulo ID:", updatedModule.id);
 
     // Aseguramos que topics sea un array válido para JSONB
     const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
     
+    // IMPORTANTE: Usamos 'upsert' en lugar de 'update'.
+    // Esto actualizará si el ID existe, o creará uno nuevo si no existe.
     const { data, error } = await supabase
       .from('modules')
-      .update({
+      .upsert({
+        id: updatedModule.id, // Es vital incluir el ID para que upsert sepa si actualizar o insertar
         title: updatedModule.title,
         description: updatedModule.description,
         image_url: updatedModule.imageUrl,
@@ -131,21 +133,14 @@ export class SupabaseService {
         questions: updatedModule.questions,
         documents: updatedModule.resources
       })
-      .eq('id', updatedModule.id)
       .select();
 
     if (error) {
       console.error("❌ ERROR SUPABASE:", error);
-      throw new Error(error.message);
+      throw new Error(`Error al guardar: ${error.message}`);
     }
 
-    if (!data || data.length === 0) {
-      console.error("⚠️ ALERTA: La consulta fue exitosa pero NO se actualizó ninguna fila.");
-      console.error("👉 Verifica: 1. Que el ID exista. 2. Que RLS esté desactivado.");
-      throw new Error("No se encontró el módulo para actualizar (ID inválido o bloqueado).");
-    }
-
-    console.log("✅ ÉXITO: Fila actualizada:", data);
+    console.log("✅ Guardado exitoso:", data);
   }
 
   static async updateUser(user: any) {
@@ -196,7 +191,7 @@ export class SupabaseService {
     };
   }
 
-  // Stubs for methods not yet in Supabase schema to prevent crashes
+  // Stubs for methods not yet in Supabase schema
   static getAppConfig() { return { heroImage: '', landingBackground: '', primaryColor: 'blue' }; }
   static async updateAppConfig(config: any) { }
   static async getAdminList() { return []; }
@@ -209,7 +204,6 @@ export class SupabaseService {
   static async sendBroadcast(title: string, body: string, importance: string) { }
   static getAttempts(userId: string) { return []; }
   static async submitQuiz(userId: string, moduleId: string, score: number) { 
-     // Optimistic local success
      return { passed: score >= 80 }; 
   }
 }
