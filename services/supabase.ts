@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { User, UserRole } from '../types';
+import { User, UserRole, Module } from '../types';
 
 // --- CONFIGURACIÓN DE SUPABASE ---
 const supabaseUrl = 'https://lybzvkuvjnxbfbaddnfc.supabase.co';
@@ -114,6 +114,40 @@ export class SupabaseService {
     }));
   }
 
+  static async updateModule(updatedModule: Module) {
+    console.log("🛠️ DEBUG: Intentando actualizar módulo ID:", updatedModule.id);
+    console.log("📦 DEBUG: Payload:", updatedModule);
+
+    // Aseguramos que topics sea un array válido para JSONB
+    const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
+    
+    const { data, error } = await supabase
+      .from('modules')
+      .update({
+        title: updatedModule.title,
+        description: updatedModule.description,
+        image_url: updatedModule.imageUrl,
+        topics: cleanTopics,
+        questions: updatedModule.questions,
+        documents: updatedModule.resources
+      })
+      .eq('id', updatedModule.id)
+      .select();
+
+    if (error) {
+      console.error("❌ ERROR SUPABASE:", error);
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      console.error("⚠️ ALERTA: La consulta fue exitosa pero NO se actualizó ninguna fila.");
+      console.error("👉 Verifica: 1. Que el ID exista. 2. Que RLS esté desactivado.");
+      throw new Error("No se encontró el módulo para actualizar (ID inválido o bloqueado).");
+    }
+
+    console.log("✅ ÉXITO: Fila actualizada:", data);
+  }
+
   static async updateUser(user: any) {
     const { data, error } = await supabase
       .from('users')
@@ -149,7 +183,7 @@ export class SupabaseService {
       id: dbUser.id,
       name: dbUser.name,
       email: dbUser.email,
-      password: dbUser.password, // <--- ¡ESTA ES LA LÍNEA MÁGICA QUE FALTABA!
+      password: dbUser.password,
       role: dbUser.role,
       age: dbUser.age,
       maritalStatus: dbUser.marital_status,
@@ -168,7 +202,6 @@ export class SupabaseService {
   static async getAdminList() { return []; }
   static async inviteAdmin(name: string, email: string) { }
   static async resetAdminAccess(id: string) { }
-  static async updateModule(module: any) { }
   static getNotifications(userId: string) { return []; }
   static async getBroadcastHistory() { return []; }
   static async getEvents() { return []; }
