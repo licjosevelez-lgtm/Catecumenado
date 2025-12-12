@@ -1,3 +1,5 @@
+
+
 import React, { useState, useEffect } from 'react';
 import { SupabaseService as MockService } from '../services/supabase';
 import { User, AppConfig } from '../types';
@@ -51,8 +53,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [config, setConfig] = useState<AppConfig | null>(null);
 
   useEffect(() => {
-    const c = MockService.getAppConfig();
-    setConfig(c);
+    const loadConfig = async () => {
+      const c = await MockService.getAppConfig();
+      setConfig(c);
+    };
+    loadConfig();
   }, []);
   
   // Admin Flow State
@@ -363,7 +368,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             ))}
                         </select>
                         <ChevronDown size={16} className="absolute right-3 top-3 text-gray-400 pointer-events-none" />
-                    </div>
+                            </div>
                 </div>
                </div>
 
