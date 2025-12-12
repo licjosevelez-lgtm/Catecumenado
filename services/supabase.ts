@@ -109,7 +109,8 @@ export class SupabaseService {
       videoUrl: '', 
       content: '', 
       topics: m.topics || [], 
-      resources: m.documents || [],
+      // CORRECCIÓN: Leemos de 'm.resources', no de 'm.documents'
+      resources: m.resources || [],
       questions: m.questions || []
     }));
   }
@@ -121,17 +122,17 @@ export class SupabaseService {
     const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
     
     // IMPORTANTE: Usamos 'upsert' en lugar de 'update'.
-    // Esto actualizará si el ID existe, o creará uno nuevo si no existe.
     const { data, error } = await supabase
       .from('modules')
       .upsert({
-        id: updatedModule.id, // Es vital incluir el ID para que upsert sepa si actualizar o insertar
+        id: updatedModule.id, 
         title: updatedModule.title,
         description: updatedModule.description,
         image_url: updatedModule.imageUrl,
-        topics: cleanTopics,
+        topics: cleanTopics, // AQUÍ se guardan los videos de YouTube dentro de cada objeto topic
         questions: updatedModule.questions,
-        documents: updatedModule.resources
+        // CORRECCIÓN: Guardamos en la columna 'resources', no en 'documents'
+        resources: updatedModule.resources 
       })
       .select();
 
