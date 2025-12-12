@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
 // --- CONFIGURACIÓN DE SUPABASE ---
+// Asegúrate de que estas credenciales coincidan con las de tu proyecto en Supabase
 const supabaseUrl = 'https://lybzvkuvjnxbfbaddnfc.supabase.co';
 const supabaseKey = 'sb_publishable_E9oPLgg2ZNx-ovOTTtM81A_s4tKPG3f';
 
@@ -13,7 +14,6 @@ export class SupabaseService {
   static async uploadFile(file: File): Promise<string> {
     try {
       const fileExt = file.name.split('.').pop();
-      // Limpiar nombre para evitar errores en URL
       const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
       const fileName = `${Date.now()}_${cleanName}.${fileExt}`;
 
@@ -33,7 +33,7 @@ export class SupabaseService {
       return publicUrlData.publicUrl;
     } catch (error: any) {
       console.error("Error Storage:", error);
-      throw new Error("No se pudo subir el archivo. Verifica en Supabase que el bucket 'module-files' exista y sea PÚBLICO.");
+      throw new Error("No se pudo subir el archivo. Verifica el bucket 'module-files'.");
     }
   }
 
@@ -172,7 +172,6 @@ export class SupabaseService {
   static async updateModule(updatedModule: Module) {
     const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
     
-    // Si el ID es temporal (creado con Date.now()), dejamos que el upsert maneje la creación
     const { error } = await supabase
       .from('modules')
       .upsert({
@@ -189,7 +188,7 @@ export class SupabaseService {
     if (error) throw new Error(error.message);
   }
 
-  // --- CONFIGURACIÓN (Ahora en Supabase) ---
+  // --- CONFIGURACIÓN ---
   static async getAppConfig(): Promise<AppConfig> {
     const { data, error } = await supabase
       .from('app_config')
@@ -197,7 +196,6 @@ export class SupabaseService {
       .single();
 
     if (error || !data) {
-      // Default fallback
       return { heroImage: 'https://picsum.photos/1200/400', landingBackground: '', primaryColor: 'blue' };
     }
 
@@ -212,7 +210,7 @@ export class SupabaseService {
     const { error } = await supabase
       .from('app_config')
       .upsert({
-        id: 1, // Siempre actualizamos la fila 1
+        id: 1,
         hero_image: config.heroImage,
         landing_background: config.landingBackground,
         primary_color: config.primaryColor
@@ -255,7 +253,7 @@ export class SupabaseService {
       await supabase.from('users').update({ password: null }).eq('id', id);
   }
 
-  // --- NOTIFICACIONES & BROADCASTS (Ahora en Supabase) ---
+  // --- NOTIFICACIONES & BROADCASTS ---
   static async getNotifications(userId: string): Promise<Notification[]> {
       const { data, error } = await supabase
         .from('notifications')
@@ -265,7 +263,6 @@ export class SupabaseService {
 
       if (error) return [];
       
-      // Mapear de snake_case a camelCase
       return data.map((n: any) => ({
           id: n.id,
           userId: n.user_id,
@@ -295,11 +292,9 @@ export class SupabaseService {
   }
 
   static async sendBroadcast(title: string, body: string, importance: string) {
-      // 1. Obtener todos los alumnos
       const students = await this.getAllUsers(); 
       const targetUsers = students.filter(u => u.role === 'STUDENT');
 
-      // 2. Guardar en Historial (Broadcasts)
       const { error: broadcastError } = await supabase.from('broadcasts').insert([{
           id: Date.now().toString(),
           title,
@@ -311,7 +306,6 @@ export class SupabaseService {
 
       if (broadcastError) throw new Error("Error guardando historial: " + broadcastError.message);
 
-      // 3. Insertar notificaciones individuales (Bulk Insert)
       if (targetUsers.length > 0) {
           const notifications = targetUsers.map(u => ({
               user_id: u.id,
@@ -326,7 +320,7 @@ export class SupabaseService {
       }
   }
 
-  // --- CALENDARIO (Ahora en Supabase) ---
+  // --- CALENDARIO ---
   static async getEvents(): Promise<CalendarEvent[]> {
       const { data, error } = await supabase
         .from('calendar_events')
@@ -368,7 +362,6 @@ export class SupabaseService {
      return { passed, lockedUntil }; 
   }
 
-  // Helper Mapper
   private static mapUser(dbUser: any) {
     return {
       id: dbUser.id,
