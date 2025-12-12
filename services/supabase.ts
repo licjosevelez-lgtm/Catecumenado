@@ -1,45 +1,44 @@
-
 import { createClient } from '@supabase/supabase-js';
-import { User, UserRole, Module, QuizAttempt } from '../types';
+import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
 // --- CONFIGURACIÓN DE SUPABASE ---
 const supabaseUrl = 'https://lybzvkuvjnxbfbaddnfc.supabase.co';
 const supabaseKey = 'sb_publishable_E9oPLgg2ZNx-ovOTTtM81A_s4tKPG3f';
 
-// Creación del cliente
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Clase de servicio compatible con tu código anterior
 export class SupabaseService {
 
-  // --- STORAGE (NUEVO) ---
+  // --- STORAGE ---
   static async uploadFile(file: File): Promise<string> {
-    // 1. Crear nombre único para evitar colisiones
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-    const filePath = `${fileName}`;
+    try {
+      const fileExt = file.name.split('.').pop();
+      // Limpiar nombre para evitar errores en URL
+      const cleanName = file.name.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `${Date.now()}_${cleanName}.${fileExt}`;
 
-    // 2. Subir al bucket 'module-files'
-    const { data, error } = await supabase.storage
-      .from('module-files')
-      .upload(filePath, file);
+      const { data, error } = await supabase.storage
+        .from('module-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-    if (error) {
-      console.error("Error subiendo archivo:", error);
-      throw new Error("No se pudo subir el archivo. Verifica que el bucket 'module-files' exista y sea público.");
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('module-files')
+        .getPublicUrl(fileName);
+
+      return publicUrlData.publicUrl;
+    } catch (error: any) {
+      console.error("Error Storage:", error);
+      throw new Error("No se pudo subir el archivo. Verifica en Supabase que el bucket 'module-files' exista y sea PÚBLICO.");
     }
-
-    // 3. Obtener URL pública
-    const { data: publicUrlData } = supabase.storage
-      .from('module-files')
-      .getPublicUrl(filePath);
-
-    return publicUrlData.publicUrl;
   }
 
-  // --- AUTENTICACIÓN ---
+  // --- AUTH & USERS ---
   static async loginStudent(email: string, passwordInput: string) {
-    // 1. Buscamos el usuario por correo
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -48,8 +47,6 @@ export class SupabaseService {
       .single();
 
     if (error || !data) return null;
-
-    // 2. Verificamos la contraseña (simple)
     if (data.password !== passwordInput) return null;
 
     return this.mapUser(data);
@@ -64,6 +61,8 @@ export class SupabaseService {
 
     if (error || !data) return { status: 'NOT_FOUND' };
     if (data.role !== 'ADMIN') return { status: 'NOT_FOUND' };
+    
+    if (!data.password) return { status: 'NEEDS_SETUP', name: data.name };
 
     return { status: 'ACTIVE', name: data.name };
   }
@@ -76,8 +75,9 @@ export class SupabaseService {
       .single();
 
     if (error || !data) throw new Error("Usuario no encontrado");
-    if (data.password !== passwordInput) throw new Error("Contraseña incorrecta");
     if (data.role !== 'ADMIN') throw new Error("No es administrador");
+    if (!data.password) throw new Error("La cuenta requiere configuración.");
+    if (data.password !== passwordInput) throw new Error("Contraseña incorrecta");
 
     return this.mapUser(data);
   }
@@ -116,7 +116,37 @@ export class SupabaseService {
     return this.mapUser(data);
   }
 
-  // --- DATOS ---
+  static async getAllUsers() {
+    const { data, error } = await supabase.from('users').select('*'); 
+    if (error) return [];
+    return data.map((u: any) => this.mapUser(u));
+  }
+
+  static async deleteUser(id: string) {
+      await supabase.from('users').delete().eq('id', id);
+  }
+
+  static async updateUser(user: any) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        name: user.name,
+        age: user.age,
+        phone: user.phone,
+        address: user.address,
+        sacraments: user.sacramentTypes,
+        marital_status: user.maritalStatus,
+        completed_modules: user.completedModules
+      })
+      .eq('id', user.id)
+      .select()
+      .single();
+
+    if(error) throw error;
+    return this.mapUser(data);
+  }
+
+  // --- MODULES ---
   static async getModules() {
     const { data, error } = await supabase
       .from('modules')
@@ -140,13 +170,11 @@ export class SupabaseService {
   }
 
   static async updateModule(updatedModule: Module) {
-    console.log("🛠️ DEBUG: Guardando módulo ID:", updatedModule.id);
-
-    // Aseguramos que topics sea un array válido para JSONB
     const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
     
-    // IMPORTANTE: Usamos 'upsert' en lugar de 'update'.
-    const { data, error } = await supabase
+    // Si el ID es temporal (creado con Date.now()), dejamos que el upsert maneje la creación
+    // Nota: Para producción idealmente usaríamos UUIDs generados por la DB, pero esto mantiene compatibilidad
+    const { error } = await supabase
       .from('modules')
       .upsert({
         id: updatedModule.id, 
@@ -157,47 +185,191 @@ export class SupabaseService {
         questions: updatedModule.questions,
         resources: updatedModule.resources,
         order: updatedModule.order 
-      })
-      .select();
+      });
 
-    if (error) {
-      console.error("❌ ERROR SUPABASE:", error);
-      throw new Error(`Error al guardar: ${error.message}`);
-    }
-
-    console.log("✅ Guardado exitoso:", data);
+    if (error) throw new Error(error.message);
   }
 
-  static async updateUser(user: any) {
+  // --- CONFIGURACIÓN (Ahora en Supabase) ---
+  static async getAppConfig(): Promise<AppConfig> {
     const { data, error } = await supabase
-      .from('users')
-      .update({
-        name: user.name,
-        age: user.age,
-        phone: user.phone,
-        address: user.address,
-        sacraments: user.sacramentTypes,
-        completed_modules: user.completedModules
-      })
-      .eq('id', user.id)
-      .select()
+      .from('app_config')
+      .select('*')
       .single();
 
-    if(error) throw error;
-      return this.mapUser(data);
+    if (error || !data) {
+      // Default fallback
+      return { heroImage: 'https://picsum.photos/1200/400', landingBackground: '', primaryColor: 'blue' };
+    }
+
+    return {
+      heroImage: data.hero_image,
+      landingBackground: data.landing_background,
+      primaryColor: data.primary_color
+    };
   }
 
-  static async getAllUsers() {
-    const { data, error } = await supabase.from('users').select('*').eq('role', 'STUDENT');
-    if (error) return [];
-    return data.map((u: any) => this.mapUser(u));
+  static async updateAppConfig(config: AppConfig) {
+    const { error } = await supabase
+      .from('app_config')
+      .upsert({
+        id: 1, // Siempre actualizamos la fila 1
+        hero_image: config.heroImage,
+        landing_background: config.landingBackground,
+        primary_color: config.primaryColor
+      });
+      
+    if (error) throw error;
   }
 
-  static async deleteUser(id: string) {
-      await supabase.from('users').delete().eq('id', id);
+  // --- EQUIPO (ADMINS) ---
+  static async getAdminList(): Promise<AdminUser[]> {
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'ADMIN');
+    
+    if (error || !data) return [];
+    
+    return data.map((u: any) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        password: u.password,
+        isSuperAdmin: u.is_super_admin || false
+    }));
   }
 
-  // --- MAPPER (Traductor de Base de Datos a App) ---
+  static async inviteAdmin(name: string, email: string) {
+     const { error } = await supabase.from('users').insert([{
+         name: name,
+         email: email,
+         role: 'ADMIN',
+         password: null,
+         is_super_admin: false,
+         completed_modules: []
+     }]);
+     if (error) throw new Error(error.message);
+  }
+
+  static async resetAdminAccess(id: string) {
+      await supabase.from('users').update({ password: null }).eq('id', id);
+  }
+
+  // --- NOTIFICACIONES & BROADCASTS (Ahora en Supabase) ---
+  static async getNotifications(userId: string): Promise<Notification[]> {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('timestamp', { ascending: false });
+
+      if (error) return [];
+      
+      // Mapear de snake_case a camelCase
+      return data.map((n: any) => ({
+          id: n.id,
+          userId: n.user_id,
+          message: n.message,
+          read: n.read,
+          timestamp: n.timestamp,
+          type: n.type
+      }));
+  }
+
+  static async getBroadcastHistory(): Promise<Broadcast[]> {
+      const { data, error } = await supabase
+        .from('broadcasts')
+        .select('*')
+        .order('sent_at', { ascending: false });
+
+      if (error) return [];
+
+      return data.map((b: any) => ({
+          id: b.id,
+          title: b.title,
+          body: b.body,
+          importance: b.importance,
+          sentAt: b.sent_at,
+          recipientsCount: b.recipients_count
+      }));
+  }
+
+  static async sendBroadcast(title: string, body: string, importance: string) {
+      // 1. Obtener todos los alumnos
+      const students = await this.getAllUsers(); // Filtra estudiantes internamente si es necesario, pero aquí trae todos
+      const targetUsers = students.filter(u => u.role === 'STUDENT');
+
+      // 2. Guardar en Historial (Broadcasts)
+      const { error: broadcastError } = await supabase.from('broadcasts').insert([{
+          id: Date.now().toString(),
+          title,
+          body,
+          importance,
+          sent_at: Date.now(),
+          recipients_count: targetUsers.length
+      }]);
+
+      if (broadcastError) throw new Error("Error guardando historial: " + broadcastError.message);
+
+      // 3. Insertar notificaciones individuales (Bulk Insert)
+      if (targetUsers.length > 0) {
+          const notifications = targetUsers.map(u => ({
+              user_id: u.id,
+              message: `${title}: ${body}`,
+              read: false,
+              timestamp: Date.now(),
+              type: importance === 'high' ? 'alert' : 'message'
+          }));
+
+          const { error: notifError } = await supabase.from('notifications').insert(notifications);
+          if (notifError) console.error("Error enviando notificaciones individuales", notifError);
+      }
+  }
+
+  // --- CALENDARIO (Ahora en Supabase) ---
+  static async getEvents(): Promise<CalendarEvent[]> {
+      const { data, error } = await supabase
+        .from('calendar_events')
+        .select('*');
+        
+      if (error) return [];
+      return data as CalendarEvent[];
+  }
+
+  static async addEvent(event: CalendarEvent) {
+      const { error } = await supabase
+        .from('calendar_events')
+        .insert([event]);
+        
+      if (error) throw new Error("Error guardando evento: " + error.message);
+  }
+
+  // --- QUIZ LOGIC ---
+  static getAttempts(userId: string): QuizAttempt[] { return []; } 
+
+  static async submitQuiz(userId: string, moduleId: string, score: number): Promise<{ passed: boolean; lockedUntil?: number }> { 
+     const passed = score >= 80;
+     let lockedUntil: number | undefined;
+     
+     if (passed) {
+        try {
+            const { data: user } = await supabase.from('users').select('completed_modules').eq('id', userId).single();
+            const currentModules = user?.completed_modules || [];
+            
+            if (!currentModules.includes(moduleId)) {
+                await supabase.from('users').update({ 
+                    completed_modules: [...currentModules, moduleId] 
+                }).eq('id', userId);
+            }
+        } catch (error) { console.error(error); }
+     } else {
+        lockedUntil = Date.now() + (48 * 60 * 60 * 1000);
+     }
+     return { passed, lockedUntil }; 
+  }
+
+  // Helper Mapper
   private static mapUser(dbUser: any) {
     return {
       id: dbUser.id,
@@ -214,51 +386,5 @@ export class SupabaseService {
       completedModules: dbUser.completed_modules || [],
       isSuperAdmin: dbUser.is_super_admin
     };
-  }
-
-  // Stubs for methods not yet in Supabase schema
-  static getAppConfig() { return { heroImage: '', landingBackground: '', primaryColor: 'blue' }; }
-  static async updateAppConfig(config: any) { }
-  static async getAdminList() { return []; }
-  static async inviteAdmin(name: string, email: string) { }
-  static async resetAdminAccess(id: string) { }
-  static getNotifications(userId: string) { return []; }
-  static async getBroadcastHistory() { return []; }
-  static async getEvents() { return []; }
-  static async addEvent(event: any) { }
-  static async sendBroadcast(title: string, body: string, importance: string) { }
-  static getAttempts(userId: string): QuizAttempt[] { return []; }
-
-  static async submitQuiz(userId: string, moduleId: string, score: number): Promise<{ passed: boolean; lockedUntil?: number }> { 
-     const passed = score >= 80;
-     let lockedUntil: number | undefined;
-     
-     if (passed) {
-        try {
-            const { data: user, error: fetchError } = await supabase
-                .from('users')
-                .select('completed_modules')
-                .eq('id', userId)
-                .single();
-            
-            if (fetchError) throw fetchError;
-
-            const currentModules = user.completed_modules || [];
-            if (!currentModules.includes(moduleId)) {
-                const newModules = [...currentModules, moduleId];
-                const { error: updateError } = await supabase
-                    .from('users')
-                    .update({ completed_modules: newModules })
-                    .eq('id', userId);
-                if (updateError) throw updateError;
-            }
-        } catch (error) {
-            console.error("Error actualizando progreso en Supabase:", error);
-        }
-     } else {
-        lockedUntil = Date.now() + (48 * 60 * 60 * 1000);
-     }
-
-     return { passed, lockedUntil }; 
   }
 }
