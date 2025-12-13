@@ -51,9 +51,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [currentView, setCurrentView] = useState<LoginView>('LANDING');
   const [config, setConfig] = useState<AppConfig | null>(null);
 
-  // Imagen por defecto inspiradora (Iglesia/Velas)
-  const DEFAULT_BG = 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?q=80&w=2673&auto=format&fit=crop';
-
   useEffect(() => {
     const loadConfig = async () => {
       const c = await MockService.getAppConfig();
@@ -504,15 +501,17 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   return (
     <div 
-        className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans"
+        className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden font-sans bg-gray-900"
     >
-        {/* Dynamic Background Image */}
-        <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0 transition-all duration-1000 transform scale-105"
-            style={{ 
-                backgroundImage: `url(${config?.landingBackground || DEFAULT_BG})` 
-            }}
-        ></div>
+        {/* Dynamic Background Image - Only renders if config exists */}
+        {config?.landingBackground && (
+             <div 
+                className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed z-0 transition-opacity duration-1000 animate-fade-in"
+                style={{ 
+                    backgroundImage: `url(${config.landingBackground})` 
+                }}
+            ></div>
+        )}
         
         {/* Modern Overlay - Gradient Black for Readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-gray-950/70 via-gray-900/40 to-gray-950/90 z-0"></div>
