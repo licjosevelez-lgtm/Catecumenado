@@ -76,8 +76,8 @@ export interface Module {
 }
 
 export interface AppConfig {
-  heroImage: string;
-  landingBackground: string; // New field for Landing Page
+  heroImage: string;          // Banner interno del Dashboard Estudiante
+  landingBackground: string;  // Fondo de pantalla completa del Login
   primaryColor: string;
 }
 
