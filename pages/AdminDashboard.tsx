@@ -4,7 +4,7 @@ import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, App
 import { SupabaseService as MockService } from '../services/supabase';
 import { GeminiService } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw, Download } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw, Download, Monitor, Layout as LayoutIcon } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -164,7 +164,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       if (appConfig) {
           await MockService.updateAppConfig(appConfig);
           loadData();
-          alert('Configuración guardada. Recarga la página para ver cambios de fondo.');
+          alert('Configuración guardada exitosamente.');
       }
   };
   
@@ -436,6 +436,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
            try {
                const file = e.target.files[0];
                const url = await MockService.uploadFile(file);
+               // Explicitly set landingBackground
                setAppConfig({ ...appConfig, landingBackground: url });
            } catch (error: any) {
                alert("Error subiendo imagen: " + error.message);
@@ -451,6 +452,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
            try {
                const file = e.target.files[0];
                const url = await MockService.uploadFile(file);
+               // Explicitly set heroImage
                setAppConfig({ ...appConfig, heroImage: url });
            } catch (error: any) {
                alert("Error subiendo imagen: " + error.message);
@@ -1049,88 +1051,80 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       if (!appConfig) return <div>Cargando configuración...</div>;
       
       return (
-          <div className="max-w-2xl mx-auto space-y-6">
+          <div className="max-w-4xl mx-auto space-y-8">
               <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center"><Settings className="mr-2"/> Configuración General</h3>
+                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center pb-4 border-b">
+                      <Settings className="mr-2"/> Configuración General de Imagen
+                  </h3>
                   
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                       
-                      {/* Hero Image Section */}
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Imagen de Portada (Dashboard Estudiantes)</label>
-                          <div className="relative group cursor-pointer mb-2 overflow-hidden rounded-lg h-40 border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-colors bg-gray-50 flex items-center justify-center">
-                               {appConfig.heroImage ? (
-                                   <img src={appConfig.heroImage} alt="Hero" className="w-full h-full object-cover"/>
+                      {/* Landing Background Section */}
+                      <div className="space-y-4">
+                          <h4 className="font-bold text-gray-700 flex items-center"><Monitor className="mr-2" size={18}/> Pantalla de Login (Landing)</h4>
+                          <p className="text-sm text-gray-500">Imagen de fondo completa que ven los usuarios al iniciar sesión.</p>
+                          
+                          <div className="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-all bg-gray-50 flex items-center justify-center aspect-video shadow-sm">
+                               {appConfig.landingBackground ? (
+                                   <>
+                                      <img src={appConfig.landingBackground} alt="Landing" className="w-full h-full object-cover"/>
+                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded-full">Cambiar Fondo</span>
+                                      </div>
+                                   </>
                                ) : (
-                                   <div className="text-center text-gray-400">
+                                   <div className="text-center text-gray-400 p-4">
                                        <ImageIcon className="mx-auto mb-2" size={32}/>
-                                       <span className="text-sm">Clic para subir imagen</span>
+                                       <span className="text-xs">Clic para subir (1920x1080)</span>
                                    </div>
                                )}
-                               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                   <input 
-                                      type="file" 
-                                      ref={heroImageRef}
-                                      onChange={handleUploadHero}
-                                      accept="image/*"
-                                      className="hidden"
-                                   />
-                                   <button 
-                                      onClick={() => heroImageRef.current?.click()}
-                                      disabled={uploadingHero}
-                                      className="bg-white text-gray-800 px-4 py-2 rounded-lg font-bold shadow hover:bg-gray-100"
-                                   >
-                                      {uploadingHero ? 'Subiendo...' : 'Cambiar Imagen'}
-                                   </button>
-                               </div>
+                               <input 
+                                  type="file" 
+                                  ref={landingImageRef}
+                                  onChange={handleUploadLanding}
+                                  accept="image/*"
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  disabled={uploadingLanding}
+                               />
                           </div>
-                          <p className="text-xs text-gray-500">Formato recomendado: JPG/PNG, horizontal.</p>
+                          {uploadingLanding && <div className="text-xs text-indigo-600 font-bold animate-pulse">Subiendo imagen...</div>}
                       </div>
 
-                      {/* Landing Background Section */}
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Fondo de Pantalla de Login</label>
-                          <div className="flex gap-4 items-center">
-                              <div className="w-32 h-20 rounded border border-gray-200 overflow-hidden bg-gray-100 relative">
-                                  {appConfig.landingBackground && <img src={appConfig.landingBackground} className="w-full h-full object-cover"/>}
-                              </div>
-                              <div>
-                                  <input 
-                                     type="file" 
-                                     ref={landingImageRef}
-                                     onChange={handleUploadLanding}
-                                     accept="image/*"
-                                     className="hidden"
-                                  />
-                                  <button 
-                                    onClick={() => landingImageRef.current?.click()} 
-                                    disabled={uploadingLanding}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center disabled:opacity-50"
-                                  >
-                                      <Upload size={16} className="mr-2"/> {uploadingLanding ? 'Subiendo...' : 'Subir Nueva Imagen'}
-                                  </button>
-                                  <p className="text-xs text-gray-500 mt-1">Recomendado: 1920x1080px (JPG/PNG)</p>
-                              </div>
+                      {/* Hero Image Section */}
+                      <div className="space-y-4">
+                          <h4 className="font-bold text-gray-700 flex items-center"><LayoutIcon className="mr-2" size={18}/> Banner Interno (Dashboard)</h4>
+                          <p className="text-sm text-gray-500">Banner superior que ven los estudiantes al ingresar.</p>
+                          
+                          <div className="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-all bg-gray-50 flex items-center justify-center aspect-[3/1] shadow-sm">
+                               {appConfig.heroImage ? (
+                                   <>
+                                      <img src={appConfig.heroImage} alt="Hero" className="w-full h-full object-cover"/>
+                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded-full">Cambiar Banner</span>
+                                      </div>
+                                   </>
+                               ) : (
+                                   <div className="text-center text-gray-400 p-4">
+                                       <ImageIcon className="mx-auto mb-2" size={32}/>
+                                       <span className="text-xs">Clic para subir (1200x400)</span>
+                                   </div>
+                               )}
+                               <input 
+                                  type="file" 
+                                  ref={heroImageRef}
+                                  onChange={handleUploadHero}
+                                  accept="image/*"
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                  disabled={uploadingHero}
+                               />
                           </div>
+                          {uploadingHero && <div className="text-xs text-indigo-600 font-bold animate-pulse">Subiendo imagen...</div>}
                       </div>
+                  </div>
 
-                      <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Color Primario de la Marca</label>
-                          <div className="flex gap-4">
-                              {['blue', 'indigo', 'purple', 'green', 'red', 'orange', 'slate'].map(color => (
-                                  <button 
-                                      key={color}
-                                      onClick={() => setAppConfig({...appConfig, primaryColor: color})}
-                                      className={`w-8 h-8 rounded-full border-2 transition-all ${appConfig.primaryColor === color ? 'border-gray-800 scale-110' : 'border-transparent hover:scale-105'}`}
-                                      style={{ backgroundColor: `var(--color-${color}-600, ${color})` }} // Simple simulation
-                                  ></button>
-                              ))}
-                          </div>
-                          <p className="text-xs text-gray-500 mt-2">Selecciona el color base para botones y encabezados.</p>
-                      </div>
-
-                      <div className="pt-6 border-t border-gray-100">
-                          <button onClick={handleSaveConfig} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 flex justify-center items-center">
+                  <div className="mt-10 pt-6 border-t border-gray-100">
+                      <div className="flex justify-end">
+                          <button onClick={handleSaveConfig} className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 flex items-center shadow-lg transform hover:-translate-y-0.5 transition-all">
                               <Save size={18} className="mr-2"/> Guardar Configuración
                           </button>
                       </div>
