@@ -4,7 +4,7 @@ import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, App
 import { SupabaseService as MockService } from '../services/supabase';
 import { GeminiService } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -24,11 +24,16 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const [editingModule, setEditingModule] = useState<Module | null>(null);
   const [editingQuizModule, setEditingQuizModule] = useState<Module | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const settingsImageInputRef = useRef<HTMLInputElement>(null);
+  
+  // Settings Image Refs
+  const landingImageRef = useRef<HTMLInputElement>(null);
+  const heroImageRef = useRef<HTMLInputElement>(null);
   
   // File Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const [uploadingLanding, setUploadingLanding] = useState(false);
 
   // Team Management State
   const [inviteName, setInviteName] = useState('');
@@ -424,10 +429,34 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       setEditingModule({...editingModule, resources: newRes});
   };
   
-  const handleSettingsImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- CONFIG IMAGES UPLOAD ---
+  const handleUploadLanding = async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0] && appConfig) {
-           const url = URL.createObjectURL(e.target.files[0]);
-           setAppConfig({...appConfig, landingBackground: url});
+           setUploadingLanding(true);
+           try {
+               const file = e.target.files[0];
+               const url = await MockService.uploadFile(file);
+               setAppConfig({ ...appConfig, landingBackground: url });
+           } catch (error: any) {
+               alert("Error subiendo imagen: " + error.message);
+           } finally {
+               setUploadingLanding(false);
+           }
+      }
+  };
+
+  const handleUploadHero = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0] && appConfig) {
+           setUploadingHero(true);
+           try {
+               const file = e.target.files[0];
+               const url = await MockService.uploadFile(file);
+               setAppConfig({ ...appConfig, heroImage: url });
+           } catch (error: any) {
+               alert("Error subiendo imagen: " + error.message);
+           } finally {
+               setUploadingHero(false);
+           }
       }
   };
 
@@ -630,7 +659,10 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
           <h3 className="font-bold text-gray-800">Directorio ({students.length})</h3>
-          <div className="flex gap-2"><button onClick={handleExportExcel} className="px-3 py-1 bg-green-600 text-white rounded text-sm">Excel</button></div>
+          <div className="flex gap-2">
+              <button onClick={handleExportExcel} className="px-3 py-1 bg-green-600 text-white rounded text-sm flex items-center hover:bg-green-700"><FileSpreadsheet size={16} className="mr-1"/> Excel</button>
+              <button onClick={handleExportPDF} className="px-3 py-1 bg-red-600 text-white rounded text-sm flex items-center hover:bg-red-700"><FileText size={16} className="mr-1"/> PDF</button>
+          </div>
         </div>
         <div className="p-4 overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -1022,6 +1054,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                   <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center"><Settings className="mr-2"/> Configuración General</h3>
                   
                   <div className="space-y-6">
+                      
+                      {/* Hero Image Section */}
                       <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Imagen de Portada (Dashboard Estudiantes)</label>
                           <div className="relative group cursor-pointer mb-2 overflow-hidden rounded-lg h-40 border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-colors bg-gray-50 flex items-center justify-center">
@@ -1030,22 +1064,30 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                                ) : (
                                    <div className="text-center text-gray-400">
                                        <ImageIcon className="mx-auto mb-2" size={32}/>
-                                       <span className="text-sm">Clic para cambiar URL (Demo)</span>
+                                       <span className="text-sm">Clic para subir imagen</span>
                                    </div>
                                )}
                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                    <input 
-                                      type="text" 
-                                      value={appConfig.heroImage} 
-                                      onChange={(e) => setAppConfig({...appConfig, heroImage: e.target.value})}
-                                      className="w-3/4 p-2 rounded text-sm text-gray-800"
-                                      placeholder="https://..."
+                                      type="file" 
+                                      ref={heroImageRef}
+                                      onChange={handleUploadHero}
+                                      accept="image/*"
+                                      className="hidden"
                                    />
+                                   <button 
+                                      onClick={() => heroImageRef.current?.click()}
+                                      disabled={uploadingHero}
+                                      className="bg-white text-gray-800 px-4 py-2 rounded-lg font-bold shadow hover:bg-gray-100"
+                                   >
+                                      {uploadingHero ? 'Subiendo...' : 'Cambiar Imagen'}
+                                   </button>
                                </div>
                           </div>
-                          <p className="text-xs text-gray-500">Pega una URL de imagen válida.</p>
+                          <p className="text-xs text-gray-500">Formato recomendado: JPG/PNG, horizontal.</p>
                       </div>
 
+                      {/* Landing Background Section */}
                       <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">Fondo de Pantalla de Login</label>
                           <div className="flex gap-4 items-center">
@@ -1055,13 +1097,17 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                               <div>
                                   <input 
                                      type="file" 
-                                     ref={settingsImageInputRef}
-                                     onChange={handleSettingsImageUpload}
+                                     ref={landingImageRef}
+                                     onChange={handleUploadLanding}
                                      accept="image/*"
                                      className="hidden"
                                   />
-                                  <button onClick={() => settingsImageInputRef.current?.click()} className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center">
-                                      <Upload size={16} className="mr-2"/> Subir Nueva Imagen
+                                  <button 
+                                    onClick={() => landingImageRef.current?.click()} 
+                                    disabled={uploadingLanding}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center disabled:opacity-50"
+                                  >
+                                      <Upload size={16} className="mr-2"/> {uploadingLanding ? 'Subiendo...' : 'Subir Nueva Imagen'}
                                   </button>
                                   <p className="text-xs text-gray-500 mt-1">Recomendado: 1920x1080px (JPG/PNG)</p>
                               </div>
