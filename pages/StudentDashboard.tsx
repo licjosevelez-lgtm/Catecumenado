@@ -1,9 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Module } from '../types';
 import { SupabaseService as MockService } from '../services/supabase';
 import { PlayCircle, CheckCircle, Lock, BookOpen, Video, FileText, Download, User as UserIcon, Save, ChevronDown, CheckSquare, Square, MapPin, Phone, Calendar, Mail, ExternalLink, Heart } from 'lucide-react';
 import { Quiz } from './Quiz';
 import { PieChart, Pie, Cell } from 'recharts';
+import QRCode from 'qrcode';
+import jsPDF from 'jspdf';
 
 interface Props {
   user: User;
@@ -115,6 +118,77 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         alert("Error al guardar perfil: " + error.message);
     } finally {
         setSavingProfile(false);
+    }
+  };
+
+  const handleDownloadPass = async () => {
+    try {
+        // PDF Setup: Media carta aprox width 140mm, height 216mm
+        const doc = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: [140, 216] 
+        });
+
+        // Background / Border
+        doc.setLineWidth(1);
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(5, 5, 130, 206);
+
+        // Header Background
+        doc.setFillColor(79, 70, 229); // Indigo 600
+        doc.rect(5, 5, 130, 30, 'F');
+        
+        // Header Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.text("PASE DE INGRESO", 70, 18, { align: "center" });
+        doc.setFontSize(10);
+        doc.text("FASE PRESENCIAL", 70, 25, { align: "center" });
+
+        // User Info
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text("Catecúmeno:", 70, 50, { align: "center" });
+        
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text(user.name || "Sin Nombre", 70, 60, { align: "center" });
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`ID: ${user.id}`, 70, 68, { align: "center" });
+
+        // Status
+        doc.setTextColor(22, 163, 74); // Green 600
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("✔ MÓDULOS TEÓRICOS APROBADOS", 70, 85, { align: "center" });
+
+        // QR Code
+        // Use user ID or Email for unique identification
+        const qrDataUrl = await QRCode.toDataURL(user.id, { margin: 1, width: 200 });
+        doc.addImage(qrDataUrl, 'PNG', 40, 95, 60, 60);
+
+        // Footer Instructions
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text("Presenta este código QR al catequista", 70, 165, { align: "center" });
+        doc.text("para registrar tu asistencia en la parroquia.", 70, 170, { align: "center" });
+        
+        // Timestamp
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Generado: ${new Date().toLocaleDateString()}`, 70, 190, { align: "center" });
+
+        doc.save(`Pase_Catequesis_${(user.name || 'usuario').replace(/\s+/g, '_')}.pdf`);
+
+    } catch (error) {
+        console.error("Error generating PDF pass", error);
+        alert("Hubo un error generando el pase. Intenta nuevamente.");
     }
   };
 
@@ -345,7 +419,12 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                 <h3 className="text-xl font-bold text-yellow-800">🎉 ¡Formación Teórica Completada!</h3>
                 <p className="text-yellow-700 text-sm mt-1">Has desbloqueado tu Pase de Asistencia para las sesiones presenciales.</p>
             </div>
-            <button className="bg-yellow-500 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-yellow-600 transition-transform hover:-translate-y-1">Descargar Pase QR</button>
+            <button 
+                onClick={handleDownloadPass}
+                className="bg-yellow-500 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-yellow-600 transition-transform hover:-translate-y-1 flex items-center"
+            >
+                <Download size={20} className="mr-2"/> Descargar Pase QR
+            </button>
             </div>
         )}
         </div>
