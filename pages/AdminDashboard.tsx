@@ -25,9 +25,9 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const [editingQuizModule, setEditingQuizModule] = useState<Module | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Settings Image Refs
-  const landingImageRef = useRef<HTMLInputElement>(null);
-  const heroImageRef = useRef<HTMLInputElement>(null);
+  // Settings Image Refs (Files)
+  const landingImageFileRef = useRef<HTMLInputElement>(null);
+  const heroImageFileRef = useRef<HTMLInputElement>(null);
   
   // File Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -1050,85 +1050,99 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const renderSettingsView = () => {
       if (!appConfig) return <div>Cargando configuración...</div>;
       
+      const SettingsCard = ({ title, icon: Icon, value, onChangeValue, onUpload, isUploading, fileInputRef, placeholder }: any) => (
+         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+             <h4 className="font-bold text-gray-700 flex items-center mb-4 text-lg">
+                <Icon className="mr-2 text-indigo-600" size={20}/> {title}
+             </h4>
+             <p className="text-sm text-gray-500 mb-6">{placeholder}</p>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div className="space-y-6">
+                     {/* Option A */}
+                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Opción A: Pegar URL</label>
+                        <div className="flex gap-2">
+                            <input 
+                                type="text" 
+                                value={value || ''} 
+                                onChange={(e) => onChangeValue(e.target.value)}
+                                className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                                placeholder="https://ejemplo.com/imagen.jpg"
+                            />
+                        </div>
+                     </div>
+
+                     {/* Option B */}
+                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Opción B: Subir Archivo</label>
+                        <button 
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="w-full bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded text-sm font-medium hover:bg-gray-100 flex items-center justify-center shadow-sm"
+                        >
+                            {isUploading ? 'Subiendo...' : <><Upload size={16} className="mr-2"/> Seleccionar Archivo</>}
+                        </button>
+                        <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            onChange={onUpload}
+                            accept="image/*"
+                            className="hidden"
+                        />
+                     </div>
+                 </div>
+
+                 {/* Preview */}
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Vista Previa</label>
+                    <div className="relative group overflow-hidden rounded-lg border-2 border-gray-200 bg-gray-100 flex items-center justify-center aspect-video shadow-inner">
+                        {value ? (
+                            <img src={value} alt="Preview" className="w-full h-full object-cover transition-transform group-hover:scale-105"/>
+                        ) : (
+                            <div className="text-gray-400 flex flex-col items-center">
+                                <ImageIcon size={32} className="mb-2"/>
+                                <span className="text-xs">Sin imagen</span>
+                            </div>
+                        )}
+                    </div>
+                 </div>
+             </div>
+         </div>
+      );
+
       return (
-          <div className="max-w-4xl mx-auto space-y-8">
-              <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center pb-4 border-b">
-                      <Settings className="mr-2"/> Configuración General de Imagen
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      
-                      {/* Landing Background Section */}
-                      <div className="space-y-4">
-                          <h4 className="font-bold text-gray-700 flex items-center"><Monitor className="mr-2" size={18}/> Pantalla de Login (Landing)</h4>
-                          <p className="text-sm text-gray-500">Imagen de fondo completa que ven los usuarios al iniciar sesión.</p>
-                          
-                          <div className="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-all bg-gray-50 flex items-center justify-center aspect-video shadow-sm">
-                               {appConfig.landingBackground ? (
-                                   <>
-                                      <img src={appConfig.landingBackground} alt="Landing" className="w-full h-full object-cover"/>
-                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded-full">Cambiar Fondo</span>
-                                      </div>
-                                   </>
-                               ) : (
-                                   <div className="text-center text-gray-400 p-4">
-                                       <ImageIcon className="mx-auto mb-2" size={32}/>
-                                       <span className="text-xs">Clic para subir (1920x1080)</span>
-                                   </div>
-                               )}
-                               <input 
-                                  type="file" 
-                                  ref={landingImageRef}
-                                  onChange={handleUploadLanding}
-                                  accept="image/*"
-                                  className="absolute inset-0 opacity-0 cursor-pointer"
-                                  disabled={uploadingLanding}
-                               />
-                          </div>
-                          {uploadingLanding && <div className="text-xs text-indigo-600 font-bold animate-pulse">Subiendo imagen...</div>}
-                      </div>
+          <div className="max-w-5xl mx-auto space-y-8">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center pb-2 border-b">
+                  <Settings className="mr-3"/> Configuración General
+              </h3>
+              
+              <SettingsCard 
+                  title="Pantalla de Login (Landing)" 
+                  icon={Monitor}
+                  value={appConfig.landingBackground}
+                  onChangeValue={(val: string) => setAppConfig({...appConfig, landingBackground: val})}
+                  onUpload={handleUploadLanding}
+                  isUploading={uploadingLanding}
+                  fileInputRef={landingImageFileRef}
+                  placeholder="Imagen de fondo completa que ven los usuarios al iniciar sesión."
+              />
 
-                      {/* Hero Image Section */}
-                      <div className="space-y-4">
-                          <h4 className="font-bold text-gray-700 flex items-center"><LayoutIcon className="mr-2" size={18}/> Banner Interno (Dashboard)</h4>
-                          <p className="text-sm text-gray-500">Banner superior que ven los estudiantes al ingresar.</p>
-                          
-                          <div className="relative group cursor-pointer overflow-hidden rounded-xl border-2 border-dashed border-gray-300 hover:border-indigo-500 transition-all bg-gray-50 flex items-center justify-center aspect-[3/1] shadow-sm">
-                               {appConfig.heroImage ? (
-                                   <>
-                                      <img src={appConfig.heroImage} alt="Hero" className="w-full h-full object-cover"/>
-                                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded-full">Cambiar Banner</span>
-                                      </div>
-                                   </>
-                               ) : (
-                                   <div className="text-center text-gray-400 p-4">
-                                       <ImageIcon className="mx-auto mb-2" size={32}/>
-                                       <span className="text-xs">Clic para subir (1200x400)</span>
-                                   </div>
-                               )}
-                               <input 
-                                  type="file" 
-                                  ref={heroImageRef}
-                                  onChange={handleUploadHero}
-                                  accept="image/*"
-                                  className="absolute inset-0 opacity-0 cursor-pointer"
-                                  disabled={uploadingHero}
-                               />
-                          </div>
-                          {uploadingHero && <div className="text-xs text-indigo-600 font-bold animate-pulse">Subiendo imagen...</div>}
-                      </div>
-                  </div>
+              <SettingsCard 
+                  title="Banner Interno (Dashboard)" 
+                  icon={LayoutIcon}
+                  value={appConfig.heroImage}
+                  onChangeValue={(val: string) => setAppConfig({...appConfig, heroImage: val})}
+                  onUpload={handleUploadHero}
+                  isUploading={uploadingHero}
+                  fileInputRef={heroImageFileRef}
+                  placeholder="Banner panorámico superior que ven los estudiantes al ingresar a sus cursos."
+              />
 
-                  <div className="mt-10 pt-6 border-t border-gray-100">
-                      <div className="flex justify-end">
-                          <button onClick={handleSaveConfig} className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 flex items-center shadow-lg transform hover:-translate-y-0.5 transition-all">
-                              <Save size={18} className="mr-2"/> Guardar Configuración
-                          </button>
-                      </div>
-                  </div>
+              <div className="flex justify-end pt-4">
+                  <button onClick={handleSaveConfig} className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-indigo-700 flex items-center shadow-lg transform hover:-translate-y-0.5 transition-all">
+                      <Save size={18} className="mr-2"/> Guardar Configuración Global
+                  </button>
               </div>
           </div>
       );
