@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Module } from '../types';
+import { User, Module, CalendarEvent } from '../types';
 import { SupabaseService as MockService } from '../services/supabase';
-import { PlayCircle, CheckCircle, Lock, BookOpen, Video, FileText, Download, User as UserIcon, Save, ChevronDown, CheckSquare, Square, MapPin, Phone, Calendar, Mail, ExternalLink, Heart } from 'lucide-react';
+import { PlayCircle, CheckCircle, Lock, BookOpen, Video, FileText, Download, User as UserIcon, Save, ChevronDown, CheckSquare, Square, MapPin, Phone, Calendar, Mail, ExternalLink, Heart, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { Quiz } from './Quiz';
 import { PieChart, Pie, Cell } from 'recharts';
 import QRCode from 'qrcode';
@@ -34,6 +34,11 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
   const [takingQuiz, setTakingQuiz] = useState(false);
   const [config, setConfig] = useState({ heroImage: '' });
 
+  // Calendar State
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
   // Profile State
   const [profileData, setProfileData] = useState({
       name: '',
@@ -57,6 +62,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
       setModules(m.sort((a: Module, b: Module) => a.order - b.order));
       const conf = await MockService.getAppConfig();
       if (conf) setConfig(conf);
+      const events = await MockService.getEvents();
+      setCalendarEvents(events || []);
     };
     loadData();
   }, []);
@@ -82,6 +89,18 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
 
   const isModuleCompleted = (mod: Module) => safeCompletedModules.includes(mod.id);
   const allModulesComplete = modules.length > 0 && modules.every(m => safeCompletedModules.includes(m.id));
+
+  // --- HELPER FUNCTIONS ---
+  const formatDateSpanish = (dateString: string) => {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1]) - 1;
+    const day = parts[2];
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return `${day}/${months[monthIndex]}/${year}`;
+  };
 
   const toggleSacrament = (sacrament: string) => {
     setProfileData(prev => ({
@@ -299,6 +318,76 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
       </div>
   );
 
+  const renderCalendarView = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+    
+    const years = Array.from({ length: 11 }, (_, i) => year - 5 + i);
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const emptySlots = Array.from({ length: firstDay });
+    const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcomingEvents = calendarEvents
+        .filter(e => e.date >= todayStr)
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    const handleDayClick = (day: number) => {
+        const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        setSelectedDate(dateStr);
+    };
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                    <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><ChevronLeft /></button>
+                    <div className="flex gap-2 items-center">
+                        <select value={month} onChange={(e) => setCurrentDate(new Date(year, parseInt(e.target.value), 1))} className="bg-white border-gray-300 border text-gray-800 text-sm rounded-lg p-2.5 font-bold uppercase">{monthNames.map((m, idx) => (<option key={idx} value={idx}>{m}</option>))}</select>
+                        <select value={year} onChange={(e) => setCurrentDate(new Date(parseInt(e.target.value), month, 1))} className="bg-white border-gray-300 border text-gray-800 text-sm rounded-lg p-2.5 font-bold">{years.map(y => (<option key={y} value={y}>{y}</option>))}</select>
+                    </div>
+                    <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><ChevronRight /></button>
+                </div>
+                <div className="p-6">
+                    <div className="grid grid-cols-7 gap-2 text-center mb-4">{['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(d => (<div key={d} className="text-xs font-bold text-gray-400 uppercase">{d}</div>))}</div>
+                    <div className="grid grid-cols-7 gap-2">
+                        {emptySlots.map((_, i) => <div key={`empty-${i}`}></div>)}
+                        {daysArray.map(day => {
+                            const dateStr = `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                            const hasEvent = calendarEvents.some(e => e.date === dateStr);
+                            const isSelected = selectedDate === dateStr;
+                            return (
+                                <button key={day} onClick={() => handleDayClick(day)} className={`h-14 rounded-lg flex flex-col items-center justify-center relative transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'hover:bg-gray-50 bg-white border border-gray-100'}`}>
+                                    <span className="font-semibold text-sm">{day}</span>
+                                    {hasEvent && (<span className={`w-2 h-2 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-green-500'}`}></span>)}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-fit">
+                <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="font-bold text-gray-800 flex items-center"><Calendar className="mr-2 text-indigo-600" size={20} /> Próximos Eventos</h3></div>
+                <div className="p-0 max-h-[500px] overflow-y-auto">
+                    {upcomingEvents.length === 0 ? (<div className="p-6 text-center text-gray-400 text-sm">No hay eventos próximos.</div>) : (
+                        <div className="divide-y divide-gray-100">{upcomingEvents.map(evt => (
+                             <div key={evt.id} className={`p-4 hover:bg-gray-50 group relative ${selectedDate === evt.date ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`}>
+                                 {/* Applied formatDateSpanish here */}
+                                 <div className="font-bold text-indigo-900 capitalize">{formatDateSpanish(evt.date)}</div>
+                                 <div className="text-gray-800 font-medium pr-8">{evt.location}</div>
+                                 <div className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Clock size={14}/> {evt.time}</div>
+                             </div>
+                        ))}</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+  };
+
   const renderDashboard = () => {
     if (activeModule) {
         if (takingQuiz) {
@@ -433,7 +522,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
 
   return (
       <div>
-          {view === 'profile' ? renderProfile() : renderDashboard()}
+          {view === 'profile' ? renderProfile() : view === 'calendar' ? renderCalendarView() : renderDashboard()}
       </div>
   );
 };
