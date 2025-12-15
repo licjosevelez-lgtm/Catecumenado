@@ -57,6 +57,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
     }
   };
 
+  const hasUnread = notifications.some(n => !n.read);
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col md:flex-row">
       {/* Mobile Header */}
@@ -129,11 +131,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
           <div className="relative">
             <button 
               onClick={() => setShowNotifPanel(!showNotifPanel)}
-              className="p-2 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all relative"
+              className={`p-2 rounded-full transition-all duration-200 relative ${
+                hasUnread 
+                  ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100 ring-2 ring-indigo-100' 
+                  : 'text-gray-400 hover:text-indigo-600 hover:bg-gray-50'
+              }`}
             >
-              <Bell size={24} />
-              {notifications.some(n => !n.read) && (
-                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+              <Bell size={28} className={hasUnread ? 'animate-pulse' : ''} />
+              {hasUnread && (
+                <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
               )}
             </button>
 
