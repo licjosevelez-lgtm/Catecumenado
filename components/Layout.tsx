@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
-import { LogOut, Bell, BookOpen, BarChart2, User as UserIcon, Settings, Menu, X, LayoutDashboard, Library, ClipboardCheck, Shield, Megaphone, Calendar } from 'lucide-react';
+import { LogOut, Bell, BookOpen, BarChart2, User as UserIcon, Settings, Menu, X, LayoutDashboard, Library, ClipboardCheck, Shield, Megaphone, Calendar, Home } from 'lucide-react';
 // IMPORTANTE: Cambiamos a SupabaseService
 import { SupabaseService as MockService } from '../services/supabase';
 
@@ -109,7 +109,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
              </>
           ) : (
              <>
-                <NavItem icon={BookOpen} label="Mis Cursos" viewId="dashboard" />
+                <NavItem icon={Home} label="Inicio" viewId="dashboard" />
+                <NavItem icon={BookOpen} label="Mis Cursos" viewId="courses" />
                 <NavItem icon={Calendar} label="Calendario" viewId="calendar" />
                 <NavItem icon={UserIcon} label="Mi Perfil" viewId="profile" />
              </>
