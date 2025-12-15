@@ -838,7 +838,18 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                             <button onClick={() => setShowEventModal(false)}><X /></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">Fecha: {formatDateSpanish(selectedDate || '')}</div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                                <div className="relative">
+                                    <Calendar className="absolute left-3 top-2.5 text-gray-400" size={18}/>
+                                    <input 
+                                        type="date" 
+                                        value={selectedDate || ''} 
+                                        onChange={e => setSelectedDate(e.target.value)} 
+                                        className="pl-10 w-full border border-gray-300 rounded-lg p-2" 
+                                    />
+                                </div>
+                            </div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Lugar</label><div className="relative"><MapPin className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtLocation} onChange={e => setEvtLocation(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: Salón Parroquial"/></div></div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Horario</label><div className="relative"><Clock className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtTime} onChange={e => setEvtTime(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 10:00 AM"/></div></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Duración</label><input type="text" value={evtDuration} onChange={e => setEvtDuration(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 5 hrs"/></div></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Costo</label><div className="relative"><DollarSign className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtCost} onChange={e => setEvtCost(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: $50.00"/></div></div>
