@@ -63,7 +63,10 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const month = months[date.getMonth()];
     const year = date.getFullYear();
-    return `${day}/${month}/${year}`;
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} • ${hours}:${minutes}`;
   };
 
   const hasUnread = notifications.some(n => !n.read);
@@ -107,6 +110,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
           ) : (
              <>
                 <NavItem icon={BookOpen} label="Mis Cursos" viewId="dashboard" />
+                <NavItem icon={Calendar} label="Calendario" viewId="calendar" />
                 <NavItem icon={UserIcon} label="Mi Perfil" viewId="profile" />
              </>
           )}
