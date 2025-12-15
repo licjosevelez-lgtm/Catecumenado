@@ -64,6 +64,22 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const [evtDuration, setEvtDuration] = useState('');
   const [evtCost, setEvtCost] = useState('');
 
+  // --- HELPER FUNCTIONS ---
+  const formatDateSpanish = (dateString: string) => {
+    if (!dateString) return '';
+    // Espera formato YYYY-MM-DD
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1]) - 1;
+    const day = parts[2];
+    
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    
+    return `${day}/${months[monthIndex]}/${year}`;
+  };
+
   useEffect(() => {
     loadData();
     setEditingQuizModule(null);
@@ -321,7 +337,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       if(window.confirm("¿Seguro que deseas eliminar este evento?")) {
           try {
               await MockService.deleteEvent(id);
-              loadData();
+              // Actualizamos el estado local INMEDIATAMENTE para quitar el puntito verde sin recargar
+              setCalendarEvents(prev => prev.filter(e => e.id !== id));
           } catch(e: any) {
               alert("Error: " + e.message);
           }
@@ -804,7 +821,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                                      <button onClick={() => handleEditEvent(evt)} className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Editar"><Edit size={16}/></button>
                                      <button onClick={() => handleDeleteEvent(evt.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Eliminar"><Trash2 size={16}/></button>
                                  </div>
-                                 <div className="font-bold text-indigo-900">{evt.date}</div>
+                                 {/* Applied formatDateSpanish here */}
+                                 <div className="font-bold text-indigo-900 capitalize">{formatDateSpanish(evt.date)}</div>
                                  <div className="text-gray-800 font-medium pr-8">{evt.location}</div>
                                  <div className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Clock size={14}/> {evt.time}</div>
                              </div>
@@ -820,7 +838,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                             <button onClick={() => setShowEventModal(false)}><X /></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">Fecha: {selectedDate}</div>
+                            <div className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">Fecha: {formatDateSpanish(selectedDate || '')}</div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Lugar</label><div className="relative"><MapPin className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtLocation} onChange={e => setEvtLocation(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: Salón Parroquial"/></div></div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Horario</label><div className="relative"><Clock className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtTime} onChange={e => setEvtTime(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 10:00 AM"/></div></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Duración</label><input type="text" value={evtDuration} onChange={e => setEvtDuration(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 5 hrs"/></div></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Costo</label><div className="relative"><DollarSign className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtCost} onChange={e => setEvtCost(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: $50.00"/></div></div>
