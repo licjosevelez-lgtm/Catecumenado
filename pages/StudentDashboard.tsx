@@ -80,6 +80,14 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
     });
   }, [user]);
 
+  // FIX: Reset active module when navigating to Dashboard (Home)
+  useEffect(() => {
+    if (view === 'dashboard') {
+      setActiveModule(null);
+      setTakingQuiz(false);
+    }
+  }, [view]);
+
   const isModuleLocked = (mod: Module) => {
     if (mod.order === 1) return false;
     const previousMod = modules.find(m => m.order === mod.order - 1);
