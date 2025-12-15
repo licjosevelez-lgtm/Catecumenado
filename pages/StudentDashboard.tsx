@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Module, CalendarEvent } from '../types';
 import { SupabaseService as MockService } from '../services/supabase';
-import { PlayCircle, CheckCircle, Lock, BookOpen, Video, FileText, Download, User as UserIcon, Save, ChevronDown, CheckSquare, Square, MapPin, Phone, Calendar, Mail, ExternalLink, Heart, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { PlayCircle, CheckCircle, Lock, BookOpen, Video, FileText, Download, User as UserIcon, Save, ChevronDown, CheckSquare, Square, MapPin, Phone, Calendar, Mail, ExternalLink, Heart, ChevronLeft, ChevronRight, Clock, Megaphone, X } from 'lucide-react';
 import { Quiz } from './Quiz';
 import { PieChart, Pie, Cell } from 'recharts';
 import QRCode from 'qrcode';
@@ -53,6 +53,10 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState('');
 
+  // Welcome Modal State
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [welcomeMessageText, setWelcomeMessageText] = useState('');
+
   // Arrays seguros
   const safeCompletedModules = user.completedModules || [];
 
@@ -66,6 +70,21 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
       setCalendarEvents(events || []);
     };
     loadData();
+  }, []);
+
+  // Welcome Modal Logic
+  useEffect(() => {
+    const checkWelcome = async () => {
+        const hasSeen = localStorage.getItem('welcome_seen');
+        if (!hasSeen) {
+            const msg = await MockService.getWelcomeMessage();
+            if (msg) {
+                setWelcomeMessageText(msg);
+                setShowWelcomeModal(true);
+            }
+        }
+    };
+    checkWelcome();
   }, []);
 
   useEffect(() => {
@@ -87,6 +106,11 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
       setTakingQuiz(false);
     }
   }, [view]);
+
+  const handleCloseWelcome = () => {
+      localStorage.setItem('welcome_seen', 'true');
+      setShowWelcomeModal(false);
+  };
 
   const isModuleLocked = (mod: Module) => {
     if (mod.order === 1) return false;
@@ -539,6 +563,33 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             >
                 <Download size={20} className="mr-2"/> Descargar Pase QR
             </button>
+            </div>
+        )}
+        
+        {/* Welcome Modal */}
+        {showWelcomeModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+                <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-up transform transition-all">
+                    <div className="bg-indigo-600 p-5 text-white flex justify-between items-center">
+                        <h3 className="font-bold text-lg flex items-center">
+                            <Megaphone className="mr-2" size={24}/> Aviso Importante
+                        </h3>
+                        <button onClick={handleCloseWelcome} className="text-white/80 hover:text-white transition-colors">
+                            <X size={24} />
+                        </button>
+                    </div>
+                    <div className="p-8">
+                        <div className="text-gray-700 text-base leading-relaxed whitespace-pre-line mb-8">
+                            {welcomeMessageText}
+                        </div>
+                        <button 
+                            onClick={handleCloseWelcome}
+                            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg"
+                        >
+                            Entendido
+                        </button>
+                    </div>
+                </div>
             </div>
         )}
         </div>
