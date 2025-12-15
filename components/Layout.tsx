@@ -57,6 +57,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
     }
   };
 
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const day = date.getDate();
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const hasUnread = notifications.some(n => !n.read);
 
   return (
@@ -154,7 +163,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, title,
                     notifications.map(n => (
                       <div key={n.id} className={`p-3 border-b text-sm ${getNotificationStyle(n.type)}`}>
                         <p className="text-gray-800">{n.message}</p>
-                        <p className="text-xs text-gray-400 mt-1">{new Date(n.timestamp).toLocaleTimeString()}</p>
+                        <p className="text-xs text-gray-400 mt-1">{formatDate(n.timestamp)}</p>
                       </div>
                     ))
                   )}
