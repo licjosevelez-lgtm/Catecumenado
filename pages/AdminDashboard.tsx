@@ -56,6 +56,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   
   // Event Form State
   const [evtLocation, setEvtLocation] = useState('');
@@ -297,11 +298,34 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     const month = currentDate.getMonth() + 1;
     const formattedDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     setSelectedDate(formattedDate);
+    // Limpiar formulario para nuevo evento
     setEvtLocation('');
     setEvtTime('');
     setEvtDuration('');
     setEvtCost('');
+    setEditingEventId(null); // Asegurar que no estamos editando
     setShowEventModal(true);
+  };
+  
+  const handleEditEvent = (evt: CalendarEvent) => {
+      setEditingEventId(evt.id);
+      setSelectedDate(evt.date);
+      setEvtLocation(evt.location);
+      setEvtTime(evt.time);
+      setEvtDuration(evt.duration);
+      setEvtCost(evt.cost);
+      setShowEventModal(true);
+  };
+  
+  const handleDeleteEvent = async (id: string) => {
+      if(window.confirm("¿Seguro que deseas eliminar este evento?")) {
+          try {
+              await MockService.deleteEvent(id);
+              loadData();
+          } catch(e: any) {
+              alert("Error: " + e.message);
+          }
+      }
   };
 
   const handleSaveEvent = async (notify: boolean) => {
@@ -309,19 +333,35 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       alert('Por favor completa al menos Lugar y Horario.');
       return;
     }
-    const newEvent: CalendarEvent = {
-      id: Date.now().toString(), // Upsert en Supabase usa ID
+    
+    // Si estamos editando usamos el ID existente, si no, uno nuevo (aunque Supabase puede generar ID, aquí lo mandamos)
+    const eventId = editingEventId || Date.now().toString();
+    
+    const eventData: CalendarEvent = {
+      id: eventId,
       date: selectedDate,
       location: evtLocation,
       time: evtTime,
       duration: evtDuration,
       cost: evtCost
     };
+    
     try {
-      await MockService.addEvent(newEvent);
+      if (editingEventId) {
+          await MockService.updateEvent(eventData);
+      } else {
+          await MockService.addEvent(eventData);
+      }
+      
       if (notify) {
-        const title = "Nuevo Curso Presencial Disponible";
-        const msg = `Se ha abierto una fecha en ${evtLocation} para el ${selectedDate}. Horario: ${evtTime}.`;
+        let title, msg;
+        if (editingEventId) {
+            title = "⚠️ ACTUALIZACIÓN DE CURSO";
+            msg = `El evento del ${selectedDate} en ${evtLocation} ha sufrido cambios. Nuevo horario: ${evtTime}. Por favor tomen nota.`;
+        } else {
+            title = "Nuevo Curso Presencial Disponible";
+            msg = `Se ha abierto una fecha en ${evtLocation} para el ${selectedDate}. Horario: ${evtTime}.`;
+        }
         await MockService.sendBroadcast(title, msg, 'high');
         alert('Evento guardado y alumnos notificados.');
       } else {
@@ -756,21 +796,42 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
             </div>
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-fit">
                 <div className="p-6 border-b border-gray-100 bg-gray-50"><h3 className="font-bold text-gray-800 flex items-center"><Calendar className="mr-2 text-indigo-600" size={20} /> Próximos Eventos</h3></div>
-                <div className="p-0">
+                <div className="p-0 max-h-[500px] overflow-y-auto">
                     {upcomingEvents.length === 0 ? (<div className="p-6 text-center text-gray-400 text-sm">No hay eventos próximos.</div>) : (
-                        <div className="divide-y divide-gray-100">{upcomingEvents.map(evt => (<div key={evt.id} className="p-4 hover:bg-gray-50"><div className="font-bold text-indigo-900">{evt.date}</div><div className="text-gray-800 font-medium">{evt.location}</div><div className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Clock size={14}/> {evt.time}</div></div>))}</div>
+                        <div className="divide-y divide-gray-100">{upcomingEvents.map(evt => (
+                             <div key={evt.id} className="p-4 hover:bg-gray-50 group relative">
+                                 <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                     <button onClick={() => handleEditEvent(evt)} className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Editar"><Edit size={16}/></button>
+                                     <button onClick={() => handleDeleteEvent(evt.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Eliminar"><Trash2 size={16}/></button>
+                                 </div>
+                                 <div className="font-bold text-indigo-900">{evt.date}</div>
+                                 <div className="text-gray-800 font-medium pr-8">{evt.location}</div>
+                                 <div className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Clock size={14}/> {evt.time}</div>
+                             </div>
+                        ))}</div>
                     )}
                 </div>
             </div>
             {showEventModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
-                        <div className="bg-indigo-600 p-4 text-white flex justify-between items-center"><h3 className="font-bold">Agendar Curso Presencial</h3><button onClick={() => setShowEventModal(false)}><X /></button></div>
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-fade-in-up">
+                        <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
+                            <h3 className="font-bold">{editingEventId ? 'Editar Curso Presencial' : 'Agendar Curso Presencial'}</h3>
+                            <button onClick={() => setShowEventModal(false)}><X /></button>
+                        </div>
                         <div className="p-6 space-y-4">
                             <div className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-2">Fecha: {selectedDate}</div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Lugar</label><div className="relative"><MapPin className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtLocation} onChange={e => setEvtLocation(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: Salón Parroquial"/></div></div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Horario</label><div className="relative"><Clock className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtTime} onChange={e => setEvtTime(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 10:00 AM"/></div></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Duración</label><input type="text" value={evtDuration} onChange={e => setEvtDuration(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: 5 hrs"/></div></div>
                             <div><label className="block text-sm font-medium text-gray-700 mb-1">Costo</label><div className="relative"><DollarSign className="absolute left-3 top-2.5 text-gray-400" size={18}/><input type="text" value={evtCost} onChange={e => setEvtCost(e.target.value)} className="pl-10 w-full border border-gray-300 rounded-lg p-2" placeholder="Ej: $50.00"/></div></div>
+                            
+                            {editingEventId && (
+                                <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-xs text-yellow-800 flex items-start">
+                                    <AlertTriangle size={14} className="mr-2 mt-0.5 flex-shrink-0"/>
+                                    <span>Al guardar cambios en un evento existente, se recomienda usar "Guardar y Notificar" para avisar a los alumnos del cambio.</span>
+                                </div>
+                            )}
+
                             <div className="flex gap-3 pt-4"><button onClick={() => handleSaveEvent(false)} className="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg font-medium hover:bg-gray-200">Guardar</button><button onClick={() => handleSaveEvent(true)} className="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 flex justify-center items-center"><Megaphone size={16} className="mr-2"/> Guardar y Notificar</button></div>
                         </div>
                     </div>
