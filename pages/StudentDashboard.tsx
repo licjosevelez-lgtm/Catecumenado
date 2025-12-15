@@ -388,7 +388,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
     );
   };
 
-  const renderDashboard = () => {
+  const renderContent = () => {
     if (activeModule) {
         if (takingQuiz) {
         return (
@@ -463,26 +463,43 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         );
     }
 
+    // Logic for distinguishing "Inicio" (dashboard) vs "Mis Cursos" (courses)
+    const showHero = view === 'dashboard';
+
     return (
         <div className="space-y-8">
-        <div className="h-64 rounded-2xl bg-cover bg-center shadow-md relative flex items-center justify-between overflow-hidden" style={{ backgroundImage: `url(${config.heroImage || 'https://picsum.photos/1200/400'})` }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
-            <div className="relative z-10 p-8 text-white flex-1">
-                <h1 className="text-3xl font-bold">Bienvenido, {user.name}</h1>
-                <p className="opacity-90 mt-2 text-lg">{safeCompletedModules.length === modules.length ? "¡Has completado toda tu formación teórica!" : "Continúa tu camino de fe."}</p>
-            </div>
-            <div className="relative z-10 p-8 hidden md:flex flex-col items-center">
-                <div style={{ width: 120, height: 120 }}>
-                    <PieChart width={120} height={120}>
-                        <Pie data={progressData} cx={60} cy={60} innerRadius={40} outerRadius={55} paddingAngle={5} dataKey="value" stroke="none">
-                            {progressData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
-                        </Pie>
-                    </PieChart>
-                    <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none" style={{ paddingTop: '20px' }}><span className="text-xl font-bold text-white">{Math.round((safeCompletedModules.length / Math.max(modules.length, 1)) * 100)}%</span></div>
+        
+        {/* HERO SECTION - Only shown on Home/Dashboard view */}
+        {showHero ? (
+            <div className="h-64 rounded-2xl bg-cover bg-center shadow-md relative flex items-center justify-between overflow-hidden" style={{ backgroundImage: `url(${config.heroImage || 'https://picsum.photos/1200/400'})` }}>
+                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
+                <div className="relative z-10 p-8 text-white flex-1">
+                    <h1 className="text-3xl font-bold">Bienvenido, {user.name}</h1>
+                    <p className="opacity-90 mt-2 text-lg">{safeCompletedModules.length === modules.length ? "¡Has completado toda tu formación teórica!" : "Continúa tu camino de fe."}</p>
                 </div>
-                <span className="text-xs text-white/80 mt-2 font-medium uppercase tracking-widest">Progreso</span>
+                <div className="relative z-10 p-8 hidden md:flex flex-col items-center">
+                    <div style={{ width: 120, height: 120 }}>
+                        <PieChart width={120} height={120}>
+                            <Pie data={progressData} cx={60} cy={60} innerRadius={40} outerRadius={55} paddingAngle={5} dataKey="value" stroke="none">
+                                {progressData.map((entry, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                            </Pie>
+                        </PieChart>
+                        <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center pointer-events-none" style={{ paddingTop: '20px' }}><span className="text-xl font-bold text-white">{Math.round((safeCompletedModules.length / Math.max(modules.length, 1)) * 100)}%</span></div>
+                    </div>
+                    <span className="text-xs text-white/80 mt-2 font-medium uppercase tracking-widest">Progreso</span>
+                </div>
             </div>
-        </div>
+        ) : (
+            // SIMPLE HEADER - Shown on Courses view
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center">
+                    <BookOpen className="mr-2 text-indigo-600"/> Mis Cursos
+                </h2>
+                <p className="text-gray-500 mt-1">Accede a todo el material de estudio disponible.</p>
+            </div>
+        )}
+
+        {/* MODULES GRID - Shown on both views */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {modules.map((mod) => {
             const locked = isModuleLocked(mod);
@@ -522,7 +539,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
 
   return (
       <div>
-          {view === 'profile' ? renderProfile() : view === 'calendar' ? renderCalendarView() : renderDashboard()}
+          {view === 'profile' ? renderProfile() : view === 'calendar' ? renderCalendarView() : renderContent()}
       </div>
   );
 };
