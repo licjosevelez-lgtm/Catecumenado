@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
@@ -399,7 +398,6 @@ export class SupabaseService {
 
   static async addEvent(event: CalendarEvent): Promise<void> {
       // Limpiamos el objeto para asegurar que coincida EXACTAMENTE con la tabla
-      // y no enviamos referencias u objetos anidados.
       const payload = {
         id: event.id,
         date: event.date,
@@ -414,12 +412,33 @@ export class SupabaseService {
         .insert([payload]);
         
       if (error) {
-        // Mensaje de error detallado para el usuario
         if (error.message.includes("schema cache") || error.message.includes("Could not find")) {
-           throw new Error("⚠️ ERROR CRÍTICO DE BASE DE DATOS: La estructura de la tabla no coincide. Por favor, ejecuta el Script SQL 'REPARACIÓN NUCLEAR' en Supabase para limpiar la caché.");
+           throw new Error("⚠️ ERROR CRÍTICO DE BASE DE DATOS: La estructura de la tabla no coincide.");
         }
         throw new Error("Error guardando evento: " + error.message);
       }
+  }
+
+  static async deleteEvent(id: string): Promise<void> {
+      const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+      if (error) throw new Error("Error al eliminar evento: " + error.message);
+  }
+
+  static async updateEvent(event: CalendarEvent): Promise<void> {
+      const payload = {
+          date: event.date,
+          location: event.location,
+          time: event.time,
+          duration: event.duration,
+          cost: event.cost
+      };
+
+      const { error } = await supabase
+          .from('calendar_events')
+          .update(payload)
+          .eq('id', event.id);
+
+      if (error) throw new Error("Error actualizando evento: " + error.message);
   }
 
   // --- QUIZ LOGIC ---
