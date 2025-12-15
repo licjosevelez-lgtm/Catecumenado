@@ -373,11 +373,11 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       if (notify) {
         let title, msg;
         if (editingEventId) {
-            title = "⚠️ ACTUALIZACIÓN DE CURSO";
-            msg = `El evento del ${selectedDate} en ${evtLocation} ha sufrido cambios. Nuevo horario: ${evtTime}. Por favor tomen nota.`;
+            title = "⚠️ CAMBIO EN CRONOGRAMA";
+            msg = `⚠️ CAMBIO DE FECHA: El curso programado en ${evtLocation} se ha movido al ${formatDateSpanish(selectedDate)} a las ${evtTime}. Por favor actualiza tu agenda.`;
         } else {
             title = "Nuevo Curso Presencial Disponible";
-            msg = `Se ha abierto una fecha en ${evtLocation} para el ${selectedDate}. Horario: ${evtTime}.`;
+            msg = `Se ha abierto una fecha en ${evtLocation} para el ${formatDateSpanish(selectedDate)}. Horario: ${evtTime}.`;
         }
         await MockService.sendBroadcast(title, msg, 'high');
         alert('Evento guardado y alumnos notificados.');
