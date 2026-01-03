@@ -72,19 +72,16 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
     loadData();
   }, []);
 
-  // Welcome Modal Logic
+  // Welcome Modal Logic - Show every time the session/component starts
   useEffect(() => {
-    const checkWelcome = async () => {
-        const hasSeen = localStorage.getItem('welcome_seen');
-        if (!hasSeen) {
-            const msg = await MockService.getWelcomeMessage();
-            if (msg) {
-                setWelcomeMessageText(msg);
-                setShowWelcomeModal(true);
-            }
+    const fetchWelcome = async () => {
+        const msg = await MockService.getWelcomeMessage();
+        if (msg) {
+            setWelcomeMessageText(msg);
+            setShowWelcomeModal(true);
         }
     };
-    checkWelcome();
+    fetchWelcome();
   }, []);
 
   useEffect(() => {
@@ -108,7 +105,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
   }, [view]);
 
   const handleCloseWelcome = () => {
-      localStorage.setItem('welcome_seen', 'true');
       setShowWelcomeModal(false);
   };
 
@@ -174,23 +170,18 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
 
   const handleDownloadPass = async () => {
     try {
-        // PDF Setup: Media carta aprox width 140mm, height 216mm
         const doc = new jsPDF({
             orientation: "portrait",
             unit: "mm",
             format: [140, 216] 
         });
 
-        // Background / Border
         doc.setLineWidth(1);
         doc.setDrawColor(200, 200, 200);
         doc.rect(5, 5, 130, 206);
-
-        // Header Background
-        doc.setFillColor(79, 70, 229); // Indigo 600
+        doc.setFillColor(79, 70, 229);
         doc.rect(5, 5, 130, 30, 'F');
         
-        // Header Text
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(16);
         doc.setFont("helvetica", "bold");
@@ -198,7 +189,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         doc.setFontSize(10);
         doc.text("FASE PRESENCIAL", 70, 25, { align: "center" });
 
-        // User Info
         doc.setTextColor(50, 50, 50);
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
@@ -212,31 +202,25 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         doc.setFont("helvetica", "normal");
         doc.text(`ID: ${user.id}`, 70, 68, { align: "center" });
 
-        // Status
-        doc.setTextColor(22, 163, 74); // Green 600
+        doc.setTextColor(22, 163, 74);
         doc.setFontSize(14);
         doc.setFont("helvetica", "bold");
         doc.text("✔ MÓDULOS TEÓRICOS APROBADOS", 70, 85, { align: "center" });
 
-        // QR Code
-        // Use user ID or Email for unique identification
         const qrDataUrl = await QRCode.toDataURL(user.id, { margin: 1, width: 200 });
         doc.addImage(qrDataUrl, 'PNG', 40, 95, 60, 60);
 
-        // Footer Instructions
         doc.setTextColor(100, 100, 100);
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
         doc.text("Presenta este código QR al catequista", 70, 165, { align: "center" });
         doc.text("para registrar tu asistencia en la parroquia.", 70, 170, { align: "center" });
         
-        // Timestamp
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
         doc.text(`Generado: ${new Date().toLocaleDateString()}`, 70, 190, { align: "center" });
 
         doc.save(`Pase_Catequesis_${(user.name || 'usuario').replace(/\s+/g, '_')}.pdf`);
-
     } catch (error) {
         console.error("Error generating PDF pass", error);
         alert("Hubo un error generando el pase. Intenta nuevamente.");
@@ -407,7 +391,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                     {upcomingEvents.length === 0 ? (<div className="p-6 text-center text-gray-400 text-sm">No hay eventos próximos.</div>) : (
                         <div className="divide-y divide-gray-100">{upcomingEvents.map(evt => (
                              <div key={evt.id} className={`p-4 hover:bg-gray-50 group relative ${selectedDate === evt.date ? 'bg-indigo-50 border-l-4 border-indigo-500' : ''}`}>
-                                 {/* Applied formatDateSpanish here */}
                                  <div className="font-bold text-indigo-900 capitalize">{formatDateSpanish(evt.date)}</div>
                                  <div className="text-gray-800 font-medium pr-8">{evt.location}</div>
                                  <div className="text-sm text-gray-500 flex items-center gap-2 mt-1"><Clock size={14}/> {evt.time}</div>
@@ -495,13 +478,11 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         );
     }
 
-    // Logic for distinguishing "Inicio" (dashboard) vs "Mis Cursos" (courses)
     const showHero = view === 'dashboard';
 
     return (
         <div className="space-y-8">
         
-        {/* HERO SECTION - Only shown on Home/Dashboard view */}
         {showHero ? (
             <div className="h-64 rounded-2xl bg-cover bg-center shadow-md relative flex items-center justify-between overflow-hidden" style={{ backgroundImage: `url(${config.heroImage || 'https://picsum.photos/1200/400'})` }}>
                 <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
@@ -522,7 +503,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                 </div>
             </div>
         ) : (
-            // SIMPLE HEADER - Shown on Courses view
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                 <h2 className="text-2xl font-bold text-gray-800 flex items-center">
                     <BookOpen className="mr-2 text-indigo-600"/> Mis Cursos
@@ -531,7 +511,6 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             </div>
         )}
 
-        {/* MODULES GRID - Shown on both views */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {modules.map((mod) => {
             const locked = isModuleLocked(mod);
@@ -566,7 +545,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             </div>
         )}
         
-        {/* Welcome Modal */}
+        {/* Welcome Modal - Appears every time component mounts (session start) */}
         {showWelcomeModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
                 <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-up transform transition-all">
