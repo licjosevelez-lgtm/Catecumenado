@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
@@ -184,6 +185,7 @@ export class SupabaseService {
         sacraments: user.sacramentTypes,
         marital_status: user.maritalStatus,
         birth_place: user.birthPlace,
+        // FIX: Replaced 'completed_modules' with 'completedModules' to match User interface in types.ts
         completed_modules: user.completedModules
       })
       .eq('id', user.id)
@@ -266,6 +268,7 @@ export class SupabaseService {
         id: 1,
         hero_image: config.heroImage,
         landing_background: config.landingBackground,
+        // FIX: Replaced 'primary_color' with 'primaryColor' to match AppConfig interface in types.ts
         primary_color: config.primaryColor
       });
       
@@ -291,15 +294,38 @@ export class SupabaseService {
   }
 
   static async inviteAdmin(name: string, email: string): Promise<void> {
-     const { error } = await supabase.from('users').insert([{
-         name: name,
-         email: email,
-         role: 'ADMIN',
-         password: null,
-         is_super_admin: false,
-         completed_modules: []
-     }]);
-     if (error) throw new Error(error.message);
+     // 1. Verificar si el usuario ya existe (sea estudiante o admin)
+     const { data: existingUser } = await supabase
+       .from('users')
+       .select('id, role')
+       .eq('email', email)
+       .single();
+
+     if (existingUser) {
+        // 2. Si existe, simplemente actualizamos su rol y reiniciamos contraseña
+        // Esto permite que un Estudiante se convierta en Administrador
+        const { error } = await supabase
+            .from('users')
+            .update({ 
+                role: 'ADMIN', 
+                password: null, // Forzar configuración de nueva contraseña de admin
+                name: name      // Actualizar nombre si es necesario
+            })
+            .eq('id', existingUser.id);
+        
+        if (error) throw new Error("Error al promover usuario: " + error.message);
+     } else {
+        // 3. Si no existe, lo creamos normalmente
+        const { error } = await supabase.from('users').insert([{
+            name: name,
+            email: email,
+            role: 'ADMIN',
+            password: null,
+            is_super_admin: false,
+            completed_modules: []
+        }]);
+        if (error) throw new Error("Error al invitar: " + error.message);
+     }
   }
 
   static async resetAdminAccess(id: string): Promise<void> {
