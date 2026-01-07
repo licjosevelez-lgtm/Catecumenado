@@ -430,22 +430,23 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
 
         return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden max-w-5xl mx-auto">
-            <div className="p-8">
+            {/* Optimización de padding para móviles (p-5 en lugar de p-8) */}
+            <div className="p-5 md:p-8">
             <button onClick={() => setActiveModule(null)} className="text-sm text-gray-500 mb-6 hover:underline flex items-center">← Volver al tablero</button>
             <div className="mb-8 border-b pb-6">
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 px-2 py-1 rounded">Módulo {activeModule.order}</span>
-                <h2 className="text-3xl font-bold text-gray-900 mt-2">{activeModule.title}</h2>
-                <p className="text-lg text-gray-600 mt-2">{activeModule.description}</p>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mt-2">{activeModule.title}</h2>
+                <p className="text-base md:text-lg text-gray-600 mt-2">{activeModule.description}</p>
             </div>
             
             {(activeModule.resources || []).length > 0 && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg p-6 mb-10">
+                <div className="bg-blue-50 border border-blue-100 rounded-lg p-5 md:p-6 mb-10">
                     <h3 className="font-bold text-blue-900 mb-3 flex items-center"><BookOpen className="mr-2"/> Documentos de Estudio</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {activeModule.resources!.map((res, idx) => (
                             <a key={idx} href={res.url} className="flex items-center bg-white p-3 rounded shadow-sm hover:shadow-md transition-shadow border border-blue-100 text-blue-700">
                                 <FileText className="mr-2 flex-shrink-0" size={20}/>
-                                <span className="truncate font-medium flex-1">{res.name}</span>
+                                <span className="truncate font-medium flex-1 text-sm md:text-base">{res.name}</span>
                                 <Download size={16} className="ml-2 text-blue-400"/>
                             </a>
                         ))}
@@ -456,17 +457,17 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             <div className="space-y-6 mb-12">
                 {(activeModule.topics || []).map((topic, idx) => (
                     <div key={idx} className="bg-white border-b border-gray-100 pb-6 last:border-0">
-                        <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center">
-                            <span className="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3 font-bold flex-shrink-0">{idx + 1}</span>
+                        <h3 className="text-lg md:text-xl font-bold text-gray-800 mb-2 flex items-center">
+                            <span className="bg-indigo-100 text-indigo-700 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-xs md:text-sm mr-3 font-bold flex-shrink-0">{idx + 1}</span>
                             {topic.title}
                         </h3>
                         {topic.videoUrl && (
-                            <div className="ml-11 mb-3">
-                                <a href={topic.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-red-600 font-medium hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-sm border border-red-100 group"><ExternalLink size={16} className="mr-2" />▶ Ver video en YouTube</a>
+                            <div className="ml-10 md:ml-11 mb-3">
+                                <a href={topic.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-red-600 font-medium hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-xs md:text-sm border border-red-100 group"><ExternalLink size={14} className="mr-2" />▶ Ver video en YouTube</a>
                             </div>
                         )}
                         
-                        {/* Summary Accordion for Mobile Optimization */}
+                        {/* Summary Accordion for Mobile Optimization - Improved horizontal utilization */}
                         <details className="group ml-0 md:ml-11 mt-2">
                             <summary className="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer list-none hover:bg-indigo-50/50 transition-all border border-gray-200 select-none">
                                 <div className="flex items-center text-sm font-bold text-gray-700">
@@ -475,7 +476,8 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                                 </div>
                                 <ChevronDown size={18} className="text-gray-400 transition-transform duration-300 group-open:rotate-180" />
                             </summary>
-                            <div className="p-4 text-sm text-gray-600 leading-relaxed bg-white border-x border-b border-gray-100 rounded-b-xl animate-fade-in">
+                            {/* px-3 py-4 para ganar espacio horizontal en móviles */}
+                            <div className="px-3 md:px-4 py-4 text-sm text-gray-600 leading-relaxed bg-white border-x border-b border-gray-100 rounded-b-xl animate-fade-in">
                                 {topic.summary || "Sin resumen disponible."}
                             </div>
                         </details>
@@ -484,7 +486,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                 {(activeModule.topics || []).length === 0 && (<div className="text-center text-gray-400 py-8">No hay temas cargados en este módulo.</div>)}
             </div>
             <div className="flex justify-center border-t pt-8">
-                <button onClick={() => setTakingQuiz(true)} className="bg-indigo-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:bg-indigo-700 transform hover:scale-105 transition-all flex items-center"><PlayCircle className="mr-2" />Realizar Examen del Módulo</button>
+                <button onClick={() => setTakingQuiz(true)} className="w-full md:w-auto bg-indigo-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:bg-indigo-700 transform hover:scale-105 transition-all flex items-center justify-center"><PlayCircle className="mr-2" />Realizar Examen del Módulo</button>
             </div>
             </div>
         </div>
@@ -497,11 +499,11 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         <div className="space-y-8">
         
         {showHero ? (
-            <div className="h-64 rounded-2xl bg-cover bg-center shadow-md relative flex items-center justify-between overflow-hidden" style={{ backgroundImage: `url(${config.heroImage || 'https://picsum.photos/1200/400'})` }}>
+            <div className="h-48 md:h-64 rounded-2xl bg-cover bg-center shadow-md relative flex items-center justify-between overflow-hidden" style={{ backgroundImage: `url(${config.heroImage || 'https://picsum.photos/1200/400'})` }}>
                 <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent"></div>
-                <div className="relative z-10 p-8 text-white flex-1">
-                    <h1 className="text-3xl font-bold">Bienvenido, {user.name}</h1>
-                    <p className="opacity-90 mt-2 text-lg">{safeCompletedModules.length === modules.length ? "¡Has completado toda tu formación teórica!" : "Continúa tu camino de fe."}</p>
+                <div className="relative z-10 p-5 md:p-8 text-white flex-1">
+                    <h1 className="text-2xl md:text-3xl font-bold">Bienvenido, {user.name}</h1>
+                    <p className="opacity-90 mt-2 text-base md:text-lg">{safeCompletedModules.length === modules.length ? "¡Has completado toda tu formación teórica!" : "Continúa tu camino de fe."}</p>
                 </div>
                 <div className="relative z-10 p-8 hidden md:flex flex-col items-center">
                     <div style={{ width: 120, height: 120 }}>
@@ -529,7 +531,7 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             const locked = isModuleLocked(mod);
             const completed = isModuleCompleted(mod);
             return (
-                <div key={mod.id} className={`relative bg-white rounded-xl p-6 shadow-sm border-2 transition-all ${locked ? 'border-gray-100 opacity-70 grayscale' : 'border-transparent hover:shadow-md hover:border-indigo-100'} ${completed ? 'border-green-100' : ''}`}>
+                <div key={mod.id} className={`relative bg-white rounded-xl p-5 md:p-6 shadow-sm border-2 transition-all ${locked ? 'border-gray-100 opacity-70 grayscale' : 'border-transparent hover:shadow-md hover:border-indigo-100'} ${completed ? 'border-green-100' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                     <span className="text-xs font-bold uppercase tracking-wider text-indigo-500 bg-indigo-50 px-2 py-1 rounded">Módulo {mod.order}</span>
                     {completed ? (<CheckCircle className="text-green-500" />) : locked ? (<Lock className="text-gray-400" />) : (<div className="h-6 w-6 rounded-full border-2 border-indigo-500"></div>)}
@@ -544,14 +546,14 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
             })}
         </div>
         {allModulesComplete && (
-            <div className="bg-gradient-to-r from-yellow-100 to-orange-50 border border-yellow-200 rounded-xl p-6 flex flex-col md:flex-row items-center justify-between shadow-sm">
+            <div className="bg-gradient-to-r from-yellow-100 to-orange-50 border border-yellow-200 rounded-xl p-5 md:p-6 flex flex-col md:flex-row items-center justify-between shadow-sm">
             <div className="mb-4 md:mb-0">
                 <h3 className="text-xl font-bold text-yellow-800">🎉 ¡Formación Teórica Completada!</h3>
                 <p className="text-yellow-700 text-sm mt-1">Has desbloqueado tu Pase de Asistencia para las sesiones presenciales.</p>
             </div>
             <button 
                 onClick={handleDownloadPass}
-                className="bg-yellow-500 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-yellow-600 transition-transform hover:-translate-y-1 flex items-center"
+                className="w-full md:w-auto bg-yellow-500 text-white px-6 py-3 rounded-lg font-bold shadow hover:bg-yellow-600 transition-transform hover:-translate-y-1 flex items-center justify-center"
             >
                 <Download size={20} className="mr-2"/> Descargar Pase QR
             </button>
