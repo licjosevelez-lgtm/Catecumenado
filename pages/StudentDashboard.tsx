@@ -465,7 +465,20 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                                 <a href={topic.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center text-red-600 font-medium hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-sm border border-red-100 group"><ExternalLink size={16} className="mr-2" />▶ Ver video en YouTube</a>
                             </div>
                         )}
-                        <div className="ml-11 text-gray-600 leading-relaxed bg-gray-50 p-4 rounded-lg text-sm border-l-4 border-gray-300">{topic.summary || "Sin resumen disponible."}</div>
+                        
+                        {/* Summary Accordion for Mobile Optimization */}
+                        <details className="group ml-0 md:ml-11 mt-2">
+                            <summary className="flex items-center justify-between p-3 bg-gray-50 rounded-xl cursor-pointer list-none hover:bg-indigo-50/50 transition-all border border-gray-200 select-none">
+                                <div className="flex items-center text-sm font-bold text-gray-700">
+                                    <BookOpen size={18} className="mr-2 text-indigo-500"/>
+                                    Leer Resumen
+                                </div>
+                                <ChevronDown size={18} className="text-gray-400 transition-transform duration-300 group-open:rotate-180" />
+                            </summary>
+                            <div className="p-4 text-sm text-gray-600 leading-relaxed bg-white border-x border-b border-gray-100 rounded-b-xl animate-fade-in">
+                                {topic.summary || "Sin resumen disponible."}
+                            </div>
+                        </details>
                     </div>
                 ))}
                 {(activeModule.topics || []).length === 0 && (<div className="text-center text-gray-400 py-8">No hay temas cargados en este módulo.</div>)}
