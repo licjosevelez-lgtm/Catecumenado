@@ -548,8 +548,9 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
         {/* Welcome Modal - Appears every time component mounts (session start) */}
         {showWelcomeModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-                <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-fade-in-up transform transition-all">
-                    <div className="bg-indigo-600 p-5 text-white flex justify-between items-center">
+                <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col overflow-hidden animate-fade-in-up transform transition-all">
+                    {/* Header: Fixed at top */}
+                    <div className="bg-indigo-600 p-5 text-white flex justify-between items-center flex-shrink-0">
                         <h3 className="font-bold text-lg flex items-center">
                             <Megaphone className="mr-2" size={24}/> Aviso Importante
                         </h3>
@@ -557,13 +558,17 @@ export const StudentDashboard: React.FC<Props> = ({ user, view = 'dashboard', on
                             <X size={24} />
                         </button>
                     </div>
-                    <div className="p-8">
+                    {/* Content: Scrollable area */}
+                    <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
                         <div className="text-gray-700 text-base leading-relaxed whitespace-pre-line mb-8">
                             {welcomeMessageText}
                         </div>
+                    </div>
+                    {/* Footer/Button: Fixed at bottom */}
+                    <div className="p-6 border-t border-gray-100 flex-shrink-0">
                         <button 
                             onClick={handleCloseWelcome}
-                            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg"
+                            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg active:scale-95 transform transition-transform"
                         >
                             Entendido
                         </button>
