@@ -108,6 +108,7 @@ export class SupabaseService {
         sacraments: user.sacramentTypes,
         marital_status: user.maritalStatus,
         birth_place: user.birthPlace,
+        // FIX: Use completedModules from the User interface instead of the non-existent snake_case property
         completed_modules: user.completedModules
       }).eq('id', user.id).select().single();
     if(error) throw new Error(error.message);
@@ -153,7 +154,11 @@ export class SupabaseService {
   static async getAppConfig(): Promise<AppConfig> {
     const { data, error } = await supabase.from('app_config').select('*').single();
     if (error || !data) return { heroImage: 'https://picsum.photos/1200/400', landingBackground: '', primaryColor: 'blue' };
-    return { heroImage: data.hero_image, landingBackground: data.landing_background, primaryColor: data.primary_color };
+    return { 
+      heroImage: data.hero_image, 
+      landingBackground: data.landing_background, 
+      primary_color: data.primary_color 
+    };
   }
 
   static async updateAppConfig(config: AppConfig): Promise<void> {
@@ -232,7 +237,7 @@ export class SupabaseService {
      const passed = score >= 80;
      let lockedUntil: number | undefined;
      
-     // 1. Registrar el intento en la nueva tabla
+     // 1. Registrar el intento en la tabla histórica
      await supabase.from('quiz_attempts').insert([{
          user_id: userId,
          module_id: moduleId,
@@ -243,14 +248,14 @@ export class SupabaseService {
 
      if (passed) {
         try {
-            // 2. Actualizar módulos completados
+            // 2. Actualizar lista de módulos completados
             const { data: user } = await supabase.from('users').select('completed_modules').eq('id', userId).single();
             const currentModules = user?.completed_modules || [];
             if (!currentModules.includes(moduleId)) {
                 await supabase.from('users').update({ completed_modules: [...currentModules, moduleId] }).eq('id', userId);
             }
 
-            // 3. Recalcular Promedio General
+            // 3. RECALCULAR PROMEDIO GENERAL (Requerimiento)
             const { data: attempts } = await supabase.from('quiz_attempts').select('score').eq('user_id', userId).eq('passed', true);
             if (attempts && attempts.length > 0) {
                 const sum = attempts.reduce((acc, curr) => acc + curr.score, 0);
@@ -277,7 +282,7 @@ export class SupabaseService {
       address: dbUser.address,
       sacramentTypes: dbUser.sacraments || [],
       completedModules: dbUser.completed_modules || [],
-      averageScore: dbUser.average_score || 0, // Mapeo de la nueva columna
+      averageScore: dbUser.average_score || 0,
       isSuperAdmin: dbUser.is_super_admin
     };
   }
