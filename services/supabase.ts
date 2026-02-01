@@ -2,7 +2,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, UserRole, Module, QuizAttempt, AppConfig, Broadcast, CalendarEvent, AdminUser, Notification } from '../types';
 
-// --- CONFIGURACIÓN DE SUPABASE ---
 const supabaseUrl = 'https://lybzvkuvjnxbfbaddnfc.supabase.co';
 const supabaseKey = 'sb_publishable_E9oPLgg2ZNx-ovOTTtM81A_s4tKPG3f';
 
@@ -10,128 +9,67 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export class SupabaseService {
 
-  // --- SETTINGS (MENSAJE DE BIENVENIDA) ---
   static async getWelcomeMessage(): Promise<string> {
     const { data, error } = await supabase
       .from('app_settings')
       .select('value')
       .eq('key', 'welcome_message')
       .single();
-    
-    // Fallback por si la tabla no existe o está vacía
-    if (error || !data) {
-        return "Estamos felices de acompañarte. Comienza en el Módulo 1.";
-    }
+    if (error || !data) return "Estamos felices de acompañarte. Comienza en el Módulo 1.";
     return data.value;
   }
 
   static async updateWelcomeMessage(text: string): Promise<void> {
-    const { error } = await supabase
-      .from('app_settings')
-      .upsert({ key: 'welcome_message', value: text });
-    
-    if (error) throw new Error("Error guardando mensaje: " + error.message);
+    await supabase.from('app_settings').upsert({ key: 'welcome_message', value: text });
   }
 
-  // --- STORAGE ---
   static async uploadFile(file: File): Promise<string> {
     try {
       const fileExt = file.name.split('.').pop()?.toLowerCase() || 'dat';
-      // Saneamiento simple: alfanumérico y guiones bajos
       const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
       const cleanName = baseName.replace(/[^a-zA-Z0-9]/g, '_'); 
       const fileName = `${Date.now()}_${cleanName}.${fileExt}`;
-
-      const { error } = await supabase.storage
-        .from('module-files')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (error) {
-        console.error("Upload Error:", error);
-        throw new Error(`Storage Error: ${error.message}`);
-      }
-
-      // En Supabase v2, getPublicUrl es síncrono y devuelve { data: { publicUrl } }
-      const { data } = supabase.storage
-        .from('module-files')
-        .getPublicUrl(fileName);
-
-      if (!data || !data.publicUrl) {
-         throw new Error("No se pudo obtener la URL pública del archivo.");
-      }
-
+      const { error } = await supabase.storage.from('module-files').upload(fileName, file, { cacheControl: '3600', upsert: true });
+      if (error) throw new Error(`Storage Error: ${error.message}`);
+      const { data } = supabase.storage.from('module-files').getPublicUrl(fileName);
       return data.publicUrl;
     } catch (error: any) {
-      console.error("Error en uploadFile:", error);
       throw new Error(error.message || "Error desconocido al subir archivo.");
     }
   }
 
-  // --- AUTH & USERS ---
   static async loginStudent(email: string, passwordInput: string): Promise<User | null> {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('role', 'STUDENT')
-      .single();
-
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).eq('role', 'STUDENT').single();
     if (error || !data) return null;
     if (data.password !== passwordInput) return null;
-
     return this.mapUser(data);
   }
 
   static async checkAdminStatus(email: string): Promise<{ status: 'NOT_FOUND' | 'NEEDS_SETUP' | 'ACTIVE'; name?: string }> {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
-
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
     if (error || !data) return { status: 'NOT_FOUND' };
     if (data.role !== 'ADMIN') return { status: 'NOT_FOUND' };
-    
     if (!data.password) return { status: 'NEEDS_SETUP', name: data.name };
-
     return { status: 'ACTIVE', name: data.name };
   }
 
   static async loginAdmin(email: string, passwordInput: string): Promise<User> {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
-
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
     if (error || !data) throw new Error("Usuario no encontrado");
     if (data.role !== 'ADMIN') throw new Error("No es administrador");
     if (!data.password) throw new Error("La cuenta requiere configuración.");
     if (data.password !== passwordInput) throw new Error("Contraseña incorrecta");
-
     return this.mapUser(data);
   }
 
   static async setupAdminPassword(email: string, newPassword: string): Promise<User> {
-      const { data, error } = await supabase
-      .from('users')
-      .update({ password: newPassword })
-      .eq('email', email)
-      .select()
-      .single();
-
+      const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('email', email).select().single();
       if (error) throw new Error("Error al configurar contraseña");
       return this.mapUser(data);
   }
 
   static async register(userData: any): Promise<User> {
-    // 1. Insertar Usuario
-    const { data: newUser, error } = await supabase
-      .from('users')
-      .insert([{
+    const { data: newUser, error } = await supabase.from('users').insert([{
         name: userData.name,
         email: userData.email,
         password: userData.password,
@@ -142,30 +80,17 @@ export class SupabaseService {
         phone: userData.phone,
         address: userData.address,
         birth_place: userData.birthPlace, 
-        completed_modules: []
-      }])
-      .select()
-      .single();
-
-    if (error) throw new Error('Error al registrar. El correo podría ya existir.');
-
-    // 2. Obtener Mensaje de Bienvenida Dinámico
+        completed_modules: [],
+        average_score: 0
+    }]).select().single();
+    if (error) throw new Error('Error al registrar.');
     const welcomeMsg = await this.getWelcomeMessage();
-
-    // 3. Crear Notificación de Bienvenida
-    await supabase.from('notifications').insert([{
-        user_id: newUser.id,
-        message: welcomeMsg,
-        read: false,
-        timestamp: Date.now(),
-        type: 'success'
-    }]);
-
+    await supabase.from('notifications').insert([{ user_id: newUser.id, message: welcomeMsg, read: false, timestamp: Date.now(), type: 'success' }]);
     return this.mapUser(newUser);
   }
 
   static async getAllUsers(): Promise<User[]> {
-    const { data, error } = await supabase.from('users').select('*'); 
+    const { data, error } = await supabase.from('users').select('*').order('name', { ascending: true }); 
     if (error) return [];
     return data.map((u: any) => this.mapUser(u));
   }
@@ -175,9 +100,7 @@ export class SupabaseService {
   }
 
   static async updateUser(user: User): Promise<User> {
-    const { data, error } = await supabase
-      .from('users')
-      .update({
+    const { data, error } = await supabase.from('users').update({
         name: user.name,
         age: user.age,
         phone: user.phone,
@@ -185,26 +108,15 @@ export class SupabaseService {
         sacraments: user.sacramentTypes,
         marital_status: user.maritalStatus,
         birth_place: user.birthPlace,
-        // FIX: Replaced 'completed_modules' with 'completedModules' to match User interface in types.ts
         completed_modules: user.completedModules
-      })
-      .eq('id', user.id)
-      .select()
-      .single();
-
+      }).eq('id', user.id).select().single();
     if(error) throw new Error(error.message);
     return this.mapUser(data);
   }
 
-  // --- MODULES ---
   static async getModules(): Promise<Module[]> {
-    const { data, error } = await supabase
-      .from('modules')
-      .select('*')
-      .order('order', { ascending: true });
-
+    const { data, error } = await supabase.from('modules').select('*').order('order', { ascending: true });
     if (error) return [];
-
     return data.map((m: any) => ({
       id: m.id,
       title: m.title,
@@ -221,10 +133,7 @@ export class SupabaseService {
 
   static async updateModule(updatedModule: Module): Promise<void> {
     const cleanTopics = Array.isArray(updatedModule.topics) ? updatedModule.topics : [];
-    
-    const { error } = await supabase
-      .from('modules')
-      .upsert({
+    const { error } = await supabase.from('modules').upsert({
         id: updatedModule.id, 
         title: updatedModule.title,
         description: updatedModule.description,
@@ -234,97 +143,35 @@ export class SupabaseService {
         resources: updatedModule.resources,
         order: updatedModule.order 
       });
-
     if (error) throw new Error(error.message);
   }
 
   static async deleteModule(id: string): Promise<void> {
-    const { error } = await supabase.from('modules').delete().eq('id', id);
-    if (error) throw new Error("Error al eliminar módulo: " + error.message);
+    await supabase.from('modules').delete().eq('id', id);
   }
 
-  // --- CONFIGURACIÓN ---
   static async getAppConfig(): Promise<AppConfig> {
-    const { data, error } = await supabase
-      .from('app_config')
-      .select('*')
-      .single();
-
-    if (error || !data) {
-      return { heroImage: 'https://picsum.photos/1200/400', landingBackground: '', primaryColor: 'blue' };
-    }
-
-    return {
-      heroImage: data.hero_image,
-      landingBackground: data.landing_background,
-      primaryColor: data.primary_color
-    };
+    const { data, error } = await supabase.from('app_config').select('*').single();
+    if (error || !data) return { heroImage: 'https://picsum.photos/1200/400', landingBackground: '', primaryColor: 'blue' };
+    return { heroImage: data.hero_image, landingBackground: data.landing_background, primaryColor: data.primary_color };
   }
 
   static async updateAppConfig(config: AppConfig): Promise<void> {
-    const { error } = await supabase
-      .from('app_config')
-      .upsert({
-        id: 1,
-        hero_image: config.heroImage,
-        landing_background: config.landingBackground,
-        // FIX: Replaced 'primary_color' with 'primaryColor' to match AppConfig interface in types.ts
-        primary_color: config.primaryColor
-      });
-      
-    if (error) throw error;
+    await supabase.from('app_config').upsert({ id: 1, hero_image: config.heroImage, landing_background: config.landingBackground, primary_color: config.primaryColor });
   }
 
-  // --- EQUIPO (ADMINS) ---
   static async getAdminList(): Promise<AdminUser[]> {
-    const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('role', 'ADMIN');
-    
+    const { data, error } = await supabase.from('users').select('*').eq('role', 'ADMIN');
     if (error || !data) return [];
-    
-    return data.map((u: any) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        password: u.password,
-        isSuperAdmin: u.is_super_admin || false
-    }));
+    return data.map((u: any) => ({ id: u.id, name: u.name, email: u.email, password: u.password, isSuperAdmin: u.is_super_admin || false }));
   }
 
   static async inviteAdmin(name: string, email: string): Promise<void> {
-     // 1. Verificar si el usuario ya existe (sea estudiante o admin)
-     const { data: existingUser } = await supabase
-       .from('users')
-       .select('id, role')
-       .eq('email', email)
-       .single();
-
+     const { data: existingUser } = await supabase.from('users').select('id, role').eq('email', email).single();
      if (existingUser) {
-        // 2. Si existe, simplemente actualizamos su rol y reiniciamos contraseña
-        // Esto permite que un Estudiante se convierta en Administrador
-        const { error } = await supabase
-            .from('users')
-            .update({ 
-                role: 'ADMIN', 
-                password: null, // Forzar configuración de nueva contraseña de admin
-                name: name      // Actualizar nombre si es necesario
-            })
-            .eq('id', existingUser.id);
-        
-        if (error) throw new Error("Error al promover usuario: " + error.message);
+        await supabase.from('users').update({ role: 'ADMIN', password: null, name: name }).eq('id', existingUser.id);
      } else {
-        // 3. Si no existe, lo creamos normalmente
-        const { error } = await supabase.from('users').insert([{
-            name: name,
-            email: email,
-            role: 'ADMIN',
-            password: null,
-            is_super_admin: false,
-            completed_modules: []
-        }]);
-        if (error) throw new Error("Error al invitar: " + error.message);
+        await supabase.from('users').insert([{ name: name, email: email, role: 'ADMIN', password: null, is_super_admin: false, completed_modules: [] }]);
      }
   }
 
@@ -332,142 +179,51 @@ export class SupabaseService {
       await supabase.from('users').update({ password: null }).eq('id', id);
   }
 
-  // --- NOTIFICACIONES & BROADCASTS ---
   static async getNotifications(userId: string): Promise<Notification[]> {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false });
-
+      const { data, error } = await supabase.from('notifications').select('*').eq('user_id', userId).order('timestamp', { ascending: false });
       if (error) return [];
-      
-      return data.map((n: any) => ({
-          id: n.id,
-          userId: n.user_id,
-          message: n.message,
-          read: n.read,
-          timestamp: n.timestamp,
-          type: n.type
-      }));
+      return data.map((n: any) => ({ id: n.id, userId: n.user_id, message: n.message, read: n.read, timestamp: n.timestamp, type: n.type }));
   }
 
   static async getBroadcastHistory(): Promise<Broadcast[]> {
-      const { data, error } = await supabase
-        .from('broadcasts')
-        .select('*')
-        .order('sent_at', { ascending: false });
-
+      const { data, error } = await supabase.from('broadcasts').select('*').order('sent_at', { ascending: false });
       if (error) return [];
-
-      return data.map((b: any) => ({
-          id: b.id,
-          title: b.title,
-          body: b.body,
-          importance: b.importance,
-          sentAt: b.sent_at,
-          recipientsCount: b.recipients_count
-      }));
+      return data.map((b: any) => ({ id: b.id, title: b.title, body: b.body, importance: b.importance, sentAt: b.sent_at, recipientsCount: b.recipients_count }));
   }
 
   static async sendBroadcast(title: string, body: string, importance: string): Promise<void> {
       const students = await this.getAllUsers(); 
       const targetUsers = students.filter(u => u.role === 'STUDENT');
-
-      const { error: broadcastError } = await supabase.from('broadcasts').insert([{
-          id: Date.now().toString(),
-          title,
-          body,
-          importance,
-          sent_at: Date.now(),
-          recipients_count: targetUsers.length
-      }]);
-
-      if (broadcastError) throw new Error("Error guardando historial: " + broadcastError.message);
-
+      await supabase.from('broadcasts').insert([{ id: Date.now().toString(), title, body, importance, sent_at: Date.now(), recipients_count: targetUsers.length }]);
       if (targetUsers.length > 0) {
-          const notifications = targetUsers.map(u => ({
-              user_id: u.id,
-              message: `${title}: ${body}`,
-              read: false,
-              timestamp: Date.now(),
-              type: importance === 'high' ? 'alert' : 'message'
-          }));
-
-          const { error: notifError } = await supabase.from('notifications').insert(notifications);
-          if (notifError) console.error("Error enviando notificaciones individuales", notifError);
+          const notifications = targetUsers.map(u => ({ user_id: u.id, message: `${title}: ${body}`, read: false, timestamp: Date.now(), type: importance === 'high' ? 'alert' : 'message' }));
+          await supabase.from('notifications').insert(notifications);
       }
   }
 
   static async deleteBroadcast(id: string): Promise<void> {
-      const { error } = await supabase.from('broadcasts').delete().eq('id', id);
-      if (error) throw new Error("Error al eliminar comunicado: " + error.message);
+      await supabase.from('broadcasts').delete().eq('id', id);
   }
 
-  // --- CALENDARIO ---
   static async getEvents(): Promise<CalendarEvent[]> {
-      const { data, error } = await supabase
-        .from('calendar_events')
-        .select('*');
-        
+      const { data, error } = await supabase.from('calendar_events').select('*');
       if (error) return [];
-      // Casting seguro
-      return data.map((e: any) => ({
-        id: e.id,
-        date: e.date,
-        location: e.location,
-        time: e.time,
-        duration: e.duration,
-        cost: e.cost
-      }));
+      return data.map((e: any) => ({ id: e.id, date: e.date, location: e.location, time: e.time, duration: e.duration, cost: e.cost }));
   }
 
   static async addEvent(event: CalendarEvent): Promise<void> {
-      // Limpiamos el objeto para asegurar que coincida EXACTAMENTE con la tabla
-      const payload = {
-        id: event.id,
-        date: event.date,
-        location: event.location,
-        time: event.time,
-        duration: event.duration,
-        cost: event.cost
-      };
-
-      const { error } = await supabase
-        .from('calendar_events')
-        .insert([payload]);
-        
-      if (error) {
-        if (error.message.includes("schema cache") || error.message.includes("Could not find")) {
-           throw new Error("⚠️ ERROR CRÍTICO DE BASE DE DATOS: La estructura de la tabla no coincide.");
-        }
-        throw new Error("Error guardando evento: " + error.message);
-      }
+      const { error } = await supabase.from('calendar_events').insert([{ id: event.id, date: event.date, location: event.location, time: event.time, duration: event.duration, cost: event.cost }]);
+      if (error) throw new Error("Error guardando evento.");
   }
 
   static async deleteEvent(id: string): Promise<void> {
-      const { error } = await supabase.from('calendar_events').delete().eq('id', id);
-      if (error) throw new Error("Error al eliminar evento: " + error.message);
+      await supabase.from('calendar_events').delete().eq('id', id);
   }
 
   static async updateEvent(event: CalendarEvent): Promise<void> {
-      const payload = {
-          date: event.date,
-          location: event.location,
-          time: event.time,
-          duration: event.duration,
-          cost: event.cost
-      };
-
-      const { error } = await supabase
-          .from('calendar_events')
-          .update(payload)
-          .eq('id', event.id);
-
-      if (error) throw new Error("Error actualizando evento: " + error.message);
+      await supabase.from('calendar_events').update({ date: event.date, location: event.location, time: event.time, duration: event.duration, cost: event.cost }).eq('id', event.id);
   }
 
-  // --- QUIZ LOGIC ---
   static getAttempts(userId: string): QuizAttempt[] { 
     return []; 
   } 
@@ -476,17 +232,32 @@ export class SupabaseService {
      const passed = score >= 80;
      let lockedUntil: number | undefined;
      
+     // 1. Registrar el intento en la nueva tabla
+     await supabase.from('quiz_attempts').insert([{
+         user_id: userId,
+         module_id: moduleId,
+         score: score,
+         passed: passed,
+         timestamp: Date.now()
+     }]);
+
      if (passed) {
         try {
+            // 2. Actualizar módulos completados
             const { data: user } = await supabase.from('users').select('completed_modules').eq('id', userId).single();
             const currentModules = user?.completed_modules || [];
-            
             if (!currentModules.includes(moduleId)) {
-                await supabase.from('users').update({ 
-                    completed_modules: [...currentModules, moduleId] 
-                }).eq('id', userId);
+                await supabase.from('users').update({ completed_modules: [...currentModules, moduleId] }).eq('id', userId);
             }
-        } catch (error) { console.error(error); }
+
+            // 3. Recalcular Promedio General
+            const { data: attempts } = await supabase.from('quiz_attempts').select('score').eq('user_id', userId).eq('passed', true);
+            if (attempts && attempts.length > 0) {
+                const sum = attempts.reduce((acc, curr) => acc + curr.score, 0);
+                const avg = sum / attempts.length;
+                await supabase.from('users').update({ average_score: avg }).eq('id', userId);
+            }
+        } catch (error) { console.error("Error actualizando progreso:", error); }
      } else {
         lockedUntil = Date.now() + (48 * 60 * 60 * 1000);
      }
@@ -494,19 +265,19 @@ export class SupabaseService {
   }
 
   private static mapUser(dbUser: any): User {
-    // Mapeo defensivo para asegurar que no falle si falta una columna en DB antigua
     return {
       id: dbUser.id,
       name: dbUser.name,
       email: dbUser.email,
       role: dbUser.role as UserRole,
       age: dbUser.age,
-      maritalStatus: dbUser.marital_status, // Mapeo snake_case a camelCase
-      birthPlace: dbUser.birth_place,       // Mapeo snake_case a camelCase
+      maritalStatus: dbUser.marital_status,
+      birthPlace: dbUser.birth_place,
       phone: dbUser.phone,
       address: dbUser.address,
-      sacramentTypes: dbUser.sacraments || [], // Mapeo de nombre de columna
+      sacramentTypes: dbUser.sacraments || [],
       completedModules: dbUser.completed_modules || [],
+      averageScore: dbUser.average_score || 0, // Mapeo de la nueva columna
       isSuperAdmin: dbUser.is_super_admin
     };
   }
