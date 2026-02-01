@@ -201,18 +201,19 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
       'Nombre Completo': s.name,
       'Email': s.email,
       'Promedio': s.averageScore ? `${s.averageScore.toFixed(1)}%` : '0%',
-      'Edad': s.age || 'N/A',
       'Estado Civil': s.maritalStatus || 'N/A',
+      'Edad': s.age || 'N/A',
+      'Lugar Nacimiento': s.birthPlace || 'N/A',
       'Teléfono': s.phone || 'N/A',
       'Dirección': s.address || 'N/A',
-      'Sacramentos': (s.sacramentTypes || []).join(', ') || 'N/A',
-      'Progreso': `${(s.completedModules || []).length}/${modules.length} Módulos`
+      'Sacramentos Solicitados': (s.sacramentTypes || []).join(', ') || 'N/A',
+      'Módulos Completados': `${(s.completedModules || []).length}/${modules.length}`
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Catecumenos");
-    XLSX.writeFile(workbook, `Directorio_Catecumenos_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, `Base_Datos_Catequesis_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const handleExportPDF = () => {
@@ -226,11 +227,12 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
     doc.text(`Fecha de emisión: ${new Date().toLocaleDateString()}`, 14, 28);
     doc.text(`Total de registros: ${students.length}`, 14, 34);
 
-    const tableColumn = ["Nombre", "Email", "Promedio", "Teléfono", "Sacramentos"];
+    const tableColumn = ["Nombre", "Email", "Promedio", "Estado Civil", "Teléfono", "Sacramentos"];
     const tableRows = students.map(s => [
       s.name,
       s.email,
       s.averageScore ? `${s.averageScore.toFixed(1)}%` : '0%',
+      s.maritalStatus || '',
       s.phone || '',
       (s.sacramentTypes || []).join(', ') || ''
     ]);
@@ -662,7 +664,7 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
           <h3 className="font-bold text-gray-800">Directorio de Catecúmenos ({students.length})</h3>
           <div className="flex gap-2">
-              <button onClick={handleExportExcel} className="px-3 py-1 bg-green-600 text-white rounded text-sm flex items-center hover:bg-green-700 shadow-sm"><FileSpreadsheet size={16} className="mr-1"/> Excel</button>
+              <button onClick={handleExportExcel} className="px-3 py-1 bg-green-600 text-white rounded text-sm flex items-center hover:bg-green-700 shadow-sm"><FileSpreadsheet size={16} className="mr-1"/> Exportar Excel Full</button>
               <button onClick={handleExportPDF} className="px-3 py-1 bg-red-600 text-white rounded text-sm flex items-center hover:bg-red-700 shadow-sm"><FileText size={16} className="mr-1"/> PDF</button>
           </div>
         </div>
@@ -671,8 +673,8 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                    {/* REQUERIMIENTO: Columna de Promedio */}
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Promedio</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Estado Civil</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">WhatsApp</th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Progreso</th>
                     <th className="px-6 py-3"></th>
@@ -690,12 +692,15 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                                     {s.averageScore ? `${s.averageScore.toFixed(1)}%` : '-'}
                                 </span>
                             </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">
+                                {s.maritalStatus || 'N/A'}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{s.phone || 'N/A'}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(s.completedModules || []).length} / {modules.length}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button onClick={() => handleDeleteUser(s.id)} className="text-gray-300 hover:text-red-600 transition-colors"><Trash2 size={18}/></button></td>
                         </tr>
                     ))}
-                    {students.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">No hay catecúmenos registrados.</td></tr>}
+                    {students.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">No hay catecúmenos registrados.</td></tr>}
                 </tbody>
             </table>
         </div>
