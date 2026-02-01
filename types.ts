@@ -9,29 +9,30 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  isSuperAdmin?: boolean; // New flag for RBAC
-  // Registration fields
+  isSuperAdmin?: boolean;
   birthPlace?: string;
-  age?: number; // Changed from birthDate
-  maritalStatus?: string; // New field
-  sacramentTypes?: string[]; // Changed to array for multi-select
+  age?: number;
+  maritalStatus?: string;
+  sacramentTypes?: string[];
   address?: string;
   phone?: string;
-  completedModules: string[]; // Array of Module IDs
+  completedModules: string[];
+  averageScore?: number; // Nuevo campo para promedio general
 }
 
-// Internal Interface for Admin Auth Logic
 export interface AdminUser {
   id: string;
   email: string;
-  password: string | null; // null = New User / Reset
+  password: string | null;
   name: string;
   isSuperAdmin: boolean;
 }
 
 export interface QuizAttempt {
+  id?: string;
+  userId: string;
   moduleId: string;
-  score: number; // 0-100
+  score: number;
   timestamp: number;
   passed: boolean;
 }
@@ -47,37 +48,32 @@ export interface Resource {
   name: string;
   url: string;
   type: 'pdf' | 'doc' | 'link';
-  file?: File; // Optional property to hold the actual file object during upload simulation
+  file?: File;
 }
 
 export interface Topic {
   id: string;
   title: string;
-  videoUrl: string; // YouTube Embed ID or full URL
+  videoUrl: string;
   summary: string;
 }
 
 export interface Module {
   id: string;
   title: string;
-  description: string; // Used as the "Objective" or short intro
-  imageUrl?: string; // Cover image
-  
-  // New Structure
+  description: string;
+  imageUrl?: string;
   topics: Topic[]; 
-  
-  // Legacy fields (kept optional for type safety during migration, but UI will focus on topics)
   videoUrl?: string; 
   content?: string; 
-
-  resources?: Resource[]; // Downloadable files
+  resources?: Resource[];
   order: number;
   questions: Question[];
 }
 
 export interface AppConfig {
-  heroImage: string;          // Banner interno del Dashboard Estudiante
-  landingBackground: string;  // Fondo de pantalla completa del Login
+  heroImage: string;
+  landingBackground: string;
   primaryColor: string;
 }
 
@@ -86,7 +82,7 @@ export interface Notification {
   message: string;
   read: boolean;
   timestamp: number;
-  type: 'info' | 'success' | 'alert' | 'message'; // Added 'message' for admin broadcasts
+  type: 'info' | 'success' | 'alert' | 'message';
 }
 
 export interface Broadcast {
@@ -100,7 +96,7 @@ export interface Broadcast {
 
 export interface CalendarEvent {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   location: string;
   time: string;
   duration: string;
