@@ -157,7 +157,8 @@ export class SupabaseService {
     return { 
       heroImage: data.hero_image, 
       landingBackground: data.landing_background, 
-      primary_color: data.primary_color 
+      // FIX: Corrected property name from primary_color to primaryColor to match AppConfig interface
+      primaryColor: data.primary_color 
     };
   }
 
