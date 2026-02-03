@@ -154,16 +154,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
     try {
       if (isRegistering) {
-        if (!fullName || !studentEmail || !studentPass || !age || !phone) {
+        // REQUERIMIENTO: Validación frontend con campos actualizados (age, maritalStatus)
+        if (!fullName || !studentEmail || !studentPass || !studentPassConfirm || !age || !maritalStatus || !phone || !address) {
           throw new Error('Por favor completa todos los campos obligatorios (*)');
         }
         
+        // REQUERIMIENTO: Validación explícita de coincidencia de contraseña
         if (studentPass !== studentPassConfirm) {
            throw new Error('Las contraseñas no coinciden');
         }
 
         if (selectedSacraments.length === 0) {
-          throw new Error('Debes seleccionar al menos un sacramento');
+          throw new Error('Debes seleccionar al menos un sacramento para tu formación');
         }
 
         const newUser = await MockService.register({
@@ -187,7 +189,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }
       }
     } catch (err: any) {
-      setError(err.message);
+      // REQUERIMIENTO: Reporte de errores real para el usuario y logs técnicos
+      console.error("Authentication/Registration failure:", err);
+      setError(err.message || 'Ocurrió un error al intentar procesar tu solicitud.');
     } finally {
       setLoading(false);
     }
