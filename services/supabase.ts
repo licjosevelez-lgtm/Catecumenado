@@ -83,7 +83,10 @@ export class SupabaseService {
         completed_modules: [],
         average_score: 0
     }]).select().single();
-    if (error) throw new Error('Error al registrar.');
+    
+    // REQUERIMIENTO: Mostrar error detallado de Supabase para depuración real
+    if (error) throw new Error(error.message || 'Error al registrar en la base de datos.');
+
     const welcomeMsg = await this.getWelcomeMessage();
     await supabase.from('notifications').insert([{ user_id: newUser.id, message: welcomeMsg, read: false, timestamp: Date.now(), type: 'success' }]);
     return this.mapUser(newUser);
@@ -96,7 +99,15 @@ export class SupabaseService {
   }
 
   static async deleteUser(id: string): Promise<void> {
-      await supabase.from('users').delete().eq('id', id);
+      // REQUERIMIENTO: Ejecutar DELETE con confirmación de error para evitar desincronización en UI
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (error) throw new Error(`No se pudo eliminar el usuario: ${error.message}`);
+  }
+
+  // REQUERIMIENTO: Nueva función para restablecer contraseña de alumnos (password a null)
+  static async resetStudentPassword(id: string): Promise<void> {
+      const { error } = await supabase.from('users').update({ password: null }).eq('id', id);
+      if (error) throw new Error(`Error al restablecer contraseña: ${error.message}`);
   }
 
   static async updateUser(user: User): Promise<User> {
@@ -108,7 +119,6 @@ export class SupabaseService {
         sacraments: user.sacramentTypes,
         marital_status: user.maritalStatus,
         birth_place: user.birthPlace,
-        // FIX: Use completedModules from the User interface instead of the non-existent snake_case property
         completed_modules: user.completedModules
       }).eq('id', user.id).select().single();
     if(error) throw new Error(error.message);
@@ -157,7 +167,6 @@ export class SupabaseService {
     return { 
       heroImage: data.hero_image, 
       landingBackground: data.landing_background, 
-      // FIX: Corrected property name from primary_color to primaryColor to match AppConfig interface
       primaryColor: data.primary_color 
     };
   }
