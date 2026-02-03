@@ -4,7 +4,7 @@ import { User, Module, Question, Topic, AdminUser, Broadcast, CalendarEvent, App
 import { SupabaseService as MockService } from '../services/supabase';
 import { GeminiService } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw, Download, Monitor, Layout as LayoutIcon, GripVertical } from 'lucide-react';
+import { Users, BookOpen, AlertTriangle, Trash2, Edit, Save, Plus, X, FileText, Link as LinkIcon, Image as ImageIcon, Video, UserCheck, Activity, ChevronLeft, ChevronRight, HelpCircle, CheckCircle, Upload, File, Shield, RotateCcw, Megaphone, Send, Calendar, Clock, DollarSign, MapPin, Settings, FileSpreadsheet, MessageSquare, RefreshCw, Download, Monitor, Layout as LayoutIcon, GripVertical, KeyRound } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -137,9 +137,29 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
 
   const handleDeleteUser = async (userId: string) => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
-      await MockService.deleteUser(userId);
-      loadData();
+      try {
+          await MockService.deleteUser(userId);
+          loadData();
+          alert("Usuario eliminado correctamente.");
+      } catch (e: any) {
+          // REQUERIMIENTO: Manejo de errores en eliminación
+          console.error("Delete error:", e);
+          alert("Error al eliminar usuario: " + e.message);
+      }
     }
+  };
+
+  // REQUERIMIENTO: Nueva función para resetear contraseña de alumno
+  const handleResetStudentPassword = async (userId: string) => {
+      if (window.confirm('¿Deseas restablecer la contraseña de este alumno? Al hacerlo, podrá volver a configurar su contraseña en su próximo acceso.')) {
+          try {
+              await MockService.resetStudentPassword(userId);
+              alert("Acceso restablecido. El alumno ahora podrá configurar una nueva contraseña.");
+          } catch (e: any) {
+              console.error("Reset error:", e);
+              alert("Error al restablecer contraseña: " + e.message);
+          }
+      }
   };
 
   const handleSaveModule = async (moduleToSave: Module | null = editingModule) => {
@@ -697,7 +717,24 @@ export const AdminDashboard: React.FC<Props> = ({ view, currentUser }) => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{s.phone || 'N/A'}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{(s.completedModules || []).length} / {modules.length}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><button onClick={() => handleDeleteUser(s.id)} className="text-gray-300 hover:text-red-600 transition-colors"><Trash2 size={18}/></button></td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div className="flex gap-2 justify-end">
+                                    <button 
+                                        onClick={() => handleResetStudentPassword(s.id)} 
+                                        className="text-gray-300 hover:text-indigo-600 transition-colors p-1" 
+                                        title="Restablecer Contraseña"
+                                    >
+                                        <KeyRound size={18}/>
+                                    </button>
+                                    <button 
+                                        onClick={() => handleDeleteUser(s.id)} 
+                                        className="text-gray-300 hover:text-red-600 transition-colors p-1" 
+                                        title="Eliminar Usuario"
+                                    >
+                                        <Trash2 size={18}/>
+                                    </button>
+                                </div>
+                            </td>
                         </tr>
                     ))}
                     {students.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-gray-400">No hay catecúmenos registrados.</td></tr>}
