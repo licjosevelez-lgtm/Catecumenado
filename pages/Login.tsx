@@ -45,7 +45,8 @@ const InputField = ({ label, type = "text", value, onChange, icon: Icon, require
   </div>
 );
 
-type LoginView = 'LANDING' | 'STUDENT_AUTH' | 'ADMIN_EMAIL' | 'ADMIN_SETUP' | 'ADMIN_LOGIN';
+// REQUERIMIENTO: Nuevas vistas para el flujo multi-paso de estudiante
+type LoginView = 'LANDING' | 'STUDENT_EMAIL' | 'STUDENT_SETUP' | 'STUDENT_LOGIN' | 'ADMIN_EMAIL' | 'ADMIN_SETUP' | 'ADMIN_LOGIN';
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [currentView, setCurrentView] = useState<LoginView>('LANDING');
@@ -68,6 +69,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   // Student Flow State
   const [isRegistering, setIsRegistering] = useState(false);
   const [studentEmail, setStudentEmail] = useState('');
+  const [studentName, setStudentName] = useState(''); // Para mostrar el nombre en setup/login
   const [studentPass, setStudentPass] = useState('');
   const [studentPassConfirm, setStudentPassConfirm] = useState('');
   
@@ -95,6 +97,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     );
   };
 
+  // --- ADMIN HANDLERS ---
   const handleAdminEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -147,51 +150,106 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  const handleStudentAuth = async (e: React.FormEvent) => {
+  // --- STUDENT HANDLERS ---
+
+  // Paso 1: Verificación de correo de Alumno
+  const handleStudentEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const result = await MockService.checkStudentStatus(studentEmail);
+      if (result.status === 'NOT_FOUND') {
+        setError('Correo no encontrado. Si eres nuevo, regístrate debajo.');
+      } else if (result.status === 'NEEDS_SETUP') {
+        setStudentName(result.name || '');
+        setCurrentView('STUDENT_SETUP');
+      } else {
+        setStudentName(result.name || '');
+        setCurrentView('STUDENT_LOGIN');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Paso 2 (Opción A): Configuración de contraseña (NULL recovery)
+  const handleStudentSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (studentPass !== studentPassConfirm) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+    if (studentPass.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+    setLoading(true);
+    try {
+      const user = await MockService.setupStudentPassword(studentEmail, studentPass);
+      onLogin(user);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Paso 2 (Opción B): Login normal de alumno
+  const handleStudentLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const user = await MockService.loginStudent(studentEmail, studentPass);
+      if (user) {
+        onLogin(user);
+      } else {
+        throw new Error('Contraseña incorrecta.');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handler original para Registro
+  const handleStudentRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      if (isRegistering) {
-        // REQUERIMIENTO: Validación frontend con campos actualizados (age, maritalStatus)
-        if (!fullName || !studentEmail || !studentPass || !studentPassConfirm || !age || !maritalStatus || !phone || !address) {
-          throw new Error('Por favor completa todos los campos obligatorios (*)');
-        }
-        
-        // REQUERIMIENTO: Validación explícita de coincidencia de contraseña
-        if (studentPass !== studentPassConfirm) {
-           throw new Error('Las contraseñas no coinciden');
-        }
-
-        if (selectedSacraments.length === 0) {
-          throw new Error('Debes seleccionar al menos un sacramento para tu formación');
-        }
-
-        const newUser = await MockService.register({
-          name: fullName,
-          email: studentEmail,
-          password: studentPass,
-          birthPlace,
-          age: age,
-          maritalStatus: maritalStatus,
-          sacramentTypes: selectedSacraments,
-          address,
-          phone
-        });
-        onLogin(newUser);
-      } else {
-        const user = await MockService.loginStudent(studentEmail, studentPass);
-        if (user) {
-          onLogin(user);
-        } else {
-          throw new Error('Credenciales incorrectas o estudiante no encontrado.');
-        }
+      if (!fullName || !studentEmail || !studentPass || !studentPassConfirm || !age || !maritalStatus || !phone || !address) {
+        throw new Error('Por favor completa todos los campos obligatorios (*)');
       }
+      
+      if (studentPass !== studentPassConfirm) {
+         throw new Error('Las contraseñas no coinciden');
+      }
+
+      if (selectedSacraments.length === 0) {
+        throw new Error('Debes seleccionar al menos un sacramento para tu formación');
+      }
+
+      const newUser = await MockService.register({
+        name: fullName,
+        email: studentEmail,
+        password: studentPass,
+        birthPlace,
+        age: age,
+        maritalStatus: maritalStatus,
+        sacramentTypes: selectedSacraments,
+        address,
+        phone
+      });
+      onLogin(newUser);
     } catch (err: any) {
-      // REQUERIMIENTO: Reporte de errores real para el usuario y logs técnicos
-      console.error("Authentication/Registration failure:", err);
-      setError(err.message || 'Ocurrió un error al intentar procesar tu solicitud.');
+      console.error("Registration failure:", err);
+      setError(err.message || 'Ocurrió un error al intentar procesar tu registro.');
     } finally {
       setLoading(false);
     }
@@ -216,7 +274,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
         {/* Student Option */}
         <div 
-          onClick={() => setCurrentView('STUDENT_AUTH')}
+          onClick={() => setCurrentView('STUDENT_EMAIL')}
           className="group relative overflow-hidden bg-white/90 backdrop-blur-md p-8 md:p-10 rounded-2xl border border-white/50 shadow-2xl hover:shadow-[0_20px_50px_rgba(79,70,229,0.3)] hover:-translate-y-1 transition-all duration-300 cursor-pointer text-center"
         >
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-400 to-purple-500"></div>
@@ -346,9 +404,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   );
 
   const renderStudentFlow = () => (
-    <div className="max-w-2xl w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden my-8 relative z-10 transition-all duration-500 border border-white/50">
+    <div className={`max-w-2xl w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden my-8 relative z-10 transition-all duration-500 border border-white/50 ${isRegistering ? 'md:max-w-2xl' : 'md:max-w-md'}`}>
       <button 
-        onClick={() => { setError(''); setCurrentView('LANDING'); setIsRegistering(false); }} 
+        onClick={() => { 
+            setError(''); 
+            if (isRegistering) {
+                setIsRegistering(false);
+            } else if (currentView === 'STUDENT_LOGIN' || currentView === 'STUDENT_SETUP') {
+                setCurrentView('STUDENT_EMAIL');
+            } else {
+                setCurrentView('LANDING');
+            }
+        }} 
         className="absolute top-4 left-4 text-white/80 hover:text-white z-20 transition-colors"
       >
         <ArrowLeft size={24} />
@@ -356,20 +423,24 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-8 text-white text-center relative">
         <div className="absolute inset-0 bg-white/10 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"></div>
-        <h2 className="text-3xl font-bold tracking-tight relative z-10 font-serif">{isRegistering ? 'Inscripción Pastoral' : 'Bienvenido de Nuevo'}</h2>
-        <p className="mt-2 text-indigo-100 text-sm relative z-10 tracking-wide">Formación en la fe para la vida.</p>
+        <h2 className="text-3xl font-bold tracking-tight relative z-10 font-serif">
+            {isRegistering ? 'Inscripción Pastoral' : 'Bienvenido de Nuevo'}
+        </h2>
+        <p className="mt-2 text-indigo-100 text-sm relative z-10 tracking-wide">
+            {isRegistering ? 'Formación en la fe para la vida.' : 'Acceso al Portal de Catecúmenos'}
+        </p>
       </div>
 
       <div className="px-8 py-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
         {error && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 text-sm text-red-700 rounded flex items-center shadow-sm">
+          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 text-sm text-red-700 rounded flex items-center shadow-sm animate-shake">
              <div className="mr-2 font-bold text-lg">!</div> {error}
           </div>
         )}
 
-        <form onSubmit={handleStudentAuth} className="space-y-5">
-          
-          {isRegistering && (
+        {/* --- VISTA REGISTRO --- */}
+        {isRegistering ? (
+          <form onSubmit={handleStudentRegistration} className="space-y-5">
             <div className="animate-fade-in">
                <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-xl mb-6 text-indigo-800 text-sm flex items-start">
                   <div className="mr-3 mt-0.5 text-indigo-500"><BookOpen size={20}/></div>
@@ -467,32 +538,97 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     ))}
                   </div>
                </div>
+
+               <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required placeholder="tucorreo@ejemplo.com" />
+               <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required />
+               <InputField label="Confirmar Contraseña" type="password" value={studentPassConfirm} onChange={setStudentPassConfirm} icon={Lock} required />
+
+               <button
+                type="submit"
+                disabled={loading}
+                className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 mt-8 transition-all transform hover:-translate-y-0.5 active:scale-95"
+               >
+                 {loading ? 'Registrando...' : 'Completar Registro'}
+               </button>
             </div>
-          )}
+          </form>
+        ) : (
+          /* --- VISTA LOGIN MULTI-PASO (Homologada con Admin) --- */
+          <div className="animate-fade-in">
+            {currentView === 'STUDENT_EMAIL' && (
+              <form onSubmit={handleStudentEmailSubmit} className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4 text-center leading-relaxed">
+                  Ingresa tu correo para verificar tu progreso.
+                </p>
+                <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required placeholder="tucorreo@ejemplo.com" />
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all transform active:scale-95"
+                >
+                  {loading ? 'Verificando...' : 'Continuar'}
+                </button>
+              </form>
+            )}
 
-          <div className="pt-2">
-              <InputField label="Correo Electrónico" type="email" value={studentEmail} onChange={setStudentEmail} icon={Mail} required placeholder="tucorreo@ejemplo.com" />
-              <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required />
-              
-              {isRegistering && (
-                 <InputField label="Confirmar Contraseña" type="password" value={studentPassConfirm} onChange={setStudentPassConfirm} icon={Lock} required />
-              )}
+            {currentView === 'STUDENT_SETUP' && (
+              <form onSubmit={handleStudentSetup} className="space-y-4">
+                <div className="mb-6 text-center">
+                    <div className="inline-block p-3 bg-indigo-100 rounded-full text-indigo-600 mb-3 shadow-sm">
+                        <Lock size={28} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">Hola, {studentName}</h3>
+                    <p className="text-sm text-gray-500">Tu acceso ha sido restablecido. Por favor, configura una nueva contraseña.</p>
+                </div>
+                
+                <InputField label="Nueva Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required />
+                <InputField label="Confirmar Contraseña" type="password" value={studentPassConfirm} onChange={setStudentPassConfirm} icon={Lock} required />
+                
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all mt-2"
+                >
+                    {loading ? 'Configurando...' : 'Activar Cuenta'}
+                </button>
+              </form>
+            )}
+
+            {currentView === 'STUDENT_LOGIN' && (
+              <form onSubmit={handleStudentLogin} className="space-y-4">
+                <div className="mb-8 text-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-600 shadow-md border border-gray-100">
+                        <UserIcon size={28} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-800">{studentName}</h3>
+                    <p className="text-sm text-gray-500">{studentEmail}</p>
+                </div>
+                
+                <InputField label="Contraseña" type="password" value={studentPass} onChange={setStudentPass} icon={Lock} required />
+                
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 transition-all transform active:scale-95"
+                >
+                    {loading ? 'Iniciando...' : 'Iniciar Sesión'}
+                </button>
+              </form>
+            )}
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 mt-8 transition-all transform hover:-translate-y-0.5 active:scale-95"
-          >
-            {loading ? (isRegistering ? 'Registrando...' : 'Entrando...') : (isRegistering ? 'Completar Registro' : 'Iniciar Sesión')}
-          </button>
-        </form>
+        )}
 
         <div className="mt-8 text-center border-t border-gray-100 pt-6">
           <p className="text-sm text-gray-600">
             {isRegistering ? '¿Ya tienes una cuenta?' : '¿Es tu primera vez aquí?'}
             <button
-              onClick={() => { setIsRegistering(!isRegistering); setError(''); }}
+              onClick={() => { 
+                setIsRegistering(!isRegistering); 
+                setError(''); 
+                if (!isRegistering) {
+                    setCurrentView('STUDENT_EMAIL');
+                }
+              }}
               className="ml-2 font-bold text-indigo-600 hover:text-indigo-800 focus:outline-none hover:underline transition-colors"
             >
               {isRegistering ? 'Inicia Sesión' : 'Crea tu cuenta'}
@@ -522,7 +658,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         {currentView === 'LANDING' && renderLanding()}
         {(currentView === 'ADMIN_EMAIL' || currentView === 'ADMIN_LOGIN' || currentView === 'ADMIN_SETUP') && renderAdminFlow()}
-        {currentView === 'STUDENT_AUTH' && renderStudentFlow()}
+        {(currentView === 'STUDENT_EMAIL' || currentView === 'STUDENT_LOGIN' || currentView === 'STUDENT_SETUP') && renderStudentFlow()}
 
         <footer className="absolute bottom-4 text-center text-white/40 text-xs z-10 w-full px-4">
             <p className="mb-1">© {new Date().getFullYear()} Orden Franciscana TOR - Provincia de México.</p>
