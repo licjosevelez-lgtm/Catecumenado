@@ -53,6 +53,14 @@ export class SupabaseService {
     return { status: 'ACTIVE', name: data.name };
   }
 
+  // NUEVA FUNCIÓN: Verifica el estado del alumno para el flujo de login multi-paso
+  static async checkStudentStatus(email: string): Promise<{ status: 'NOT_FOUND' | 'NEEDS_SETUP' | 'ACTIVE'; name?: string }> {
+    const { data, error } = await supabase.from('users').select('*').eq('email', email).eq('role', 'STUDENT').single();
+    if (error || !data) return { status: 'NOT_FOUND' };
+    if (!data.password) return { status: 'NEEDS_SETUP', name: data.name };
+    return { status: 'ACTIVE', name: data.name };
+  }
+
   static async loginAdmin(email: string, passwordInput: string): Promise<User> {
     const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
     if (error || !data) throw new Error("Usuario no encontrado");
@@ -65,6 +73,13 @@ export class SupabaseService {
   static async setupAdminPassword(email: string, newPassword: string): Promise<User> {
       const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('email', email).select().single();
       if (error) throw new Error("Error al configurar contraseña");
+      return this.mapUser(data);
+  }
+
+  // NUEVA FUNCIÓN: Guarda la contraseña del alumno cuando esta es NULL (primer acceso o recuperación)
+  static async setupStudentPassword(email: string, newPassword: string): Promise<User> {
+      const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('email', email).select().single();
+      if (error) throw new Error("Error al configurar contraseña del alumno.");
       return this.mapUser(data);
   }
 
