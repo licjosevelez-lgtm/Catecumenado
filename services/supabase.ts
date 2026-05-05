@@ -76,36 +76,61 @@ export class SupabaseService {
       return this.mapUser(data);
   }
 
-  // NUEVA FUNCIÓN: Guarda la contraseña del alumno cuando esta es NULL (primer acceso o recuperación)
-  static async setupStudentPassword(email: string, newPassword: string): Promise<User> {
-      const { data, error } = await supabase.from('users').update({ password: newPassword }).eq('email', email).select().single();
-      if (error) throw new Error("Error al configurar contraseña del alumno.");
-      return this.mapUser(data);
+// NUEVA FUNCIÓN: Guarda la contraseña del alumno cuando esta es NULL (primer acceso o recuperación)
+static async setupStudentPassword(email: string, newPassword: string): Promise<User> {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('email', email)
+      .select()
+      .single();
+
+    if (error) throw new Error("Error al configurar contraseña del alumno.");
+    return this.mapUser(data);
+}
+
+static async register(userData: any): Promise<User> {
+
+  // 🔍 VALIDACIÓN PARA EVITAR DUPLICADOS (AGREGADO)
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', userData.email)
+    .maybeSingle();
+
+  if (existingUser) {
+    throw new Error('Este correo ya está registrado. Intenta iniciar sesión.');
   }
 
-  static async register(userData: any): Promise<User> {
-    const { data: newUser, error } = await supabase.from('users').insert([{
-        name: userData.name,
-        email: userData.email,
-        password: userData.password,
-        age: userData.age,
-        marital_status: userData.maritalStatus,
-        role: 'STUDENT',
-        sacraments: userData.sacramentTypes || [],
-        phone: userData.phone,
-        address: userData.address,
-        birth_place: userData.birthPlace, 
-        completed_modules: [],
-        average_score: 0
-    }]).select().single();
-    
-    // REQUERIMIENTO: Mostrar error detallado de Supabase para depuración real
-    if (error) throw new Error(error.message || 'Error al registrar en la base de datos.');
+  // 🟢 INSERT ORIGINAL (SIN CAMBIOS)
+  const { data: newUser, error } = await supabase.from('users').insert([{
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+      age: userData.age,
+      marital_status: userData.maritalStatus,
+      role: 'STUDENT',
+      sacraments: userData.sacramentTypes || [],
+      phone: userData.phone,
+      address: userData.address,
+      birth_place: userData.birthPlace, 
+      completed_modules: [],
+      average_score: 0
+  }]).select().single();
+  
+  if (error) throw new Error(error.message || 'Error al registrar en la base de datos.');
 
-    const welcomeMsg = await this.getWelcomeMessage();
-    await supabase.from('notifications').insert([{ user_id: newUser.id, message: welcomeMsg, read: false, timestamp: Date.now(), type: 'success' }]);
-    return this.mapUser(newUser);
-  }
+  const welcomeMsg = await this.getWelcomeMessage();
+  await supabase.from('notifications').insert([{
+    user_id: newUser.id,
+    message: welcomeMsg,
+    read: false,
+    timestamp: Date.now(),
+    type: 'success'
+  }]);
+
+  return this.mapUser(newUser);
+}
 
   static async getAllUsers(): Promise<User[]> {
     const { data, error } = await supabase.from('users').select('*').order('name', { ascending: true }); 
